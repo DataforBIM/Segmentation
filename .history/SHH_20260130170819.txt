@@ -1,0 +1,4 @@
+Direct ssh connect
+ssh -p 26685 root@74.48.140.178 -L 8080:localhost:8080
+Proxy ssh connect
+ssh -p 33969 root@ssh9.vast.ai -L 8080:localhost:8080
