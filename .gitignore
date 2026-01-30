@@ -1,2 +1,14 @@
-/SHH.txt
-/token.txt
+# Sensitive files
+SHH.txt
+token.txt
+.env
+
+# VS Code history & cache
+.history/
+.vscode/
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
