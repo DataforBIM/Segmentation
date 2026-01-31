@@ -59,7 +59,7 @@ negative_prompt = (
 )
 
 # Seed reproductible
-generator = torch.Generator(device="cuda").manual_seed(1234)
+generator = None
 
 # -------------------------
 # Génération
