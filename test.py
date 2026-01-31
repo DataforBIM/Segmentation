@@ -36,7 +36,7 @@ print("✅ FLUX chargé")
 # Prompt
 # -------------------------
 prompt = (
-    "je veux une image réaliste d'un Siamoi"
+    "je veux une image réaliste d'un chat Siamois réaliste"
 )
 
 # -------------------------
