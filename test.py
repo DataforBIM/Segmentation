@@ -7,10 +7,10 @@ MODEL_ID = "black-forest-labs/FLUX.1-dev"
 pipe = FluxPipeline.from_pretrained(
     MODEL_ID,
     torch_dtype=torch.float16,
-    device_map="balanced"   # ⚠️ auto NON supporté par FLUX
+    device_map="balanced"   # ← suffit à lui seul
 )
 
-pipe.enable_model_cpu_offload()
+# Optimisation mémoire OK
 pipe.enable_attention_slicing()
 
 print("✅ FLUX chargé")
