@@ -5,7 +5,7 @@ import cloudinary.uploader
 from diffusers import StableDiffusionXLPipeline
 
 # =====================================================
-# Cloudinary config (variables d’environnement)
+# Configuration Cloudinary (via variables d’environnement)
 # =====================================================
 cloudinary.config(
     cloud_name=os.environ["CLOUDINARY_CLOUD_NAME"],
@@ -17,7 +17,7 @@ cloudinary.config(
 # =====================================================
 # Chargement du modèle SDXL réaliste
 # =====================================================
-MODEL_ID = "emilianJR/epiCRealismXL"
+MODEL_ID = "SG161222/RealVisXL_V4.0"
 
 pipe = StableDiffusionXLPipeline.from_pretrained(
     MODEL_ID,
@@ -26,66 +26,77 @@ pipe = StableDiffusionXLPipeline.from_pretrained(
     use_safetensors=True
 ).to("cuda")
 
-# Optimisations GPU A100
+# Optimisations GPU (A100 / grosses cartes)
 pipe.enable_vae_slicing()
 pipe.enable_xformers_memory_efficient_attention()
 
 print("✅ SDXL RealVis XL chargé avec succès")
 
 # =====================================================
-# Prompt – CHAT SIAMOIS PLEIN CORPS (FULL BODY)
+# Prompt – VUE ARCHITECTURALE RÉALISTE (EXTÉRIEUR)
 # =====================================================
 prompt = (
-    "Photographie réaliste d’un chat Siamois adulte, "
-    "pelage court crème avec masque brun foncé sur le visage, "
-    "les oreilles, les pattes et la queue, "
-    "yeux bleus naturels en forme d’amande, "
-    "proportions anatomiquement réalistes, "
-    "texture du poil très détaillée, "
+    "Photographie architecturale réaliste d’un bâtiment contemporain, "
+    "vue extérieure soigneusement cadrée, "
 
-    "full body shot, entire animal visible, "
-    "wide shot, camera pulled back, "
-    "standing on the ground, "
-    "subject centered, correct framing, "
-    "no crop, no close-up, "
+    "architecture moderne haut de gamme, lignes épurées, "
+    "volumes lisibles et bien proportionnés, "
+    "façade en béton brut, verre clair et métal, "
+    "détails constructifs précis, joints visibles, "
 
-    "natural lighting, realistic shadows, "
-    "background softly blurred but environment visible, "
-    "real animal photography, "
-    "ultra realistic, high detail"
+    "vue en perspective à hauteur d’homme, "
+    "camera eye level, focal length 24mm, "
+    "wide shot, building fully visible, no crop, "
+    "composition architecturale équilibrée, "
+
+    "éclairage naturel réaliste, lumière douce de fin de journée, "
+    "ombres cohérentes, global illumination naturelle, "
+
+    "environnement urbain sobre, sol minéral, "
+    "végétation intégrée réaliste, arbres bien proportionnés, "
+
+    "style photographie d’architecture professionnelle, "
+    "ultra realistic, high detail, sharp focus, "
+    "physically accurate lighting, real materials"
 )
 
 # =====================================================
-# Negative prompt – INTERDIRE LE PORTRAIT
+# Negative Prompt – éviter les rendus IA irréalistes
 # =====================================================
 negative_prompt = (
-    "close-up, portrait, head shot, face only, cropped, "
-    "zoomed in, extreme close-up, "
+    "cartoon, illustration, anime, painting, "
+    "3d render, cgi, unreal engine look, "
 
-    "cartoon, illustration, anime, 3d render, cgi, "
-    "kawaii, cute, chibi, doll, toy, "
-    "big eyes, oversized head, "
-    "stylized, painting, drawing, "
-    "unrealistic proportions, smooth plastic skin, "
-    "blurry, low detail"
+    "distorted perspective, warped lines, "
+    "broken geometry, impossible architecture, "
+    "floating buildings, unrealistic scale, "
+
+    "close-up, cropped building, partial view, "
+    "fish-eye, extreme wide angle distortion, "
+
+    "overexposed, underexposed, flat lighting, "
+    "blurry, low detail, noise, "
+
+    "people in foreground, cars too close, "
+    "text, logo, watermark"
 )
 
 # =====================================================
-# Génération (sans seed → variations naturelles)
+# Génération de l’image
 # =====================================================
 image = pipe(
     prompt=prompt,
     negative_prompt=negative_prompt,
-    guidance_scale=6.0,        # 🔑 idéal pour cadrage plein corps
-    num_inference_steps=30,    # équilibre qualité / liberté
-    height=1024,
-    width=1024
+    guidance_scale=6.0,        # équilibre fidélité / liberté
+    num_inference_steps=30,    # qualité stable pour l’architecture
+    width=1024,
+    height=1024
 ).images[0]
 
 # =====================================================
 # Sauvegarde locale
 # =====================================================
-local_path = "sdxl_cat_full_body.png"
+local_path = "sdxl_architectural_view.png"
 image.save(local_path)
 
 # =====================================================
@@ -94,9 +105,10 @@ image.save(local_path)
 result = cloudinary.uploader.upload(
     local_path,
     folder="sdxl_outputs",
-    public_id="sdxl_siamese_full_body",
+    public_id="sdxl_architectural_view",
     overwrite=True
 )
 
-print("✅ Image uploadée sur Cloudinary")
+print("✅ Image générée et uploadée sur Cloudinary")
 print("🌐 URL :", result["secure_url"])
+`
