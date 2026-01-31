@@ -33,8 +33,7 @@ print("✅ FLUX chargé")
 # Prompt
 # -------------------------
 prompt = (
-    "minimalist apartment floor plan, pure white background, "
-    "architectural drawing, top view, clean lines, no shadows"
+    "je veux une image réaliste d'un Siamoi"
 )
 
 # -------------------------
