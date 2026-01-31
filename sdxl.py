@@ -47,6 +47,7 @@ prompt = (
     "éclairage naturel doux, lumière réaliste, "
     "arrière-plan flou, "
     "animal réel, photo animalière, "
+    "je veux voir tout l'animal dans le cadre, "
     "ultra realistic, high detail, sharp focus"
 )
 
