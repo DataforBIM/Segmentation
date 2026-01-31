@@ -33,27 +33,29 @@ pipe.enable_xformers_memory_efficient_attention()
 print("✅ SDXL RealVis chargé")
 
 # -------------------------
-# PROMPT – Architecture réaliste
+# Prompt (réalisme forcé)
 # -------------------------
 prompt = (
-    "Photographie architecturale réaliste d’un quartier urbain contemporain, "
-    "bâtiments à l’échelle réelle, géométrie cohérente, "
-    "façades en béton, verre et métal, "
-    "voiries réalistes, trottoirs, arbres, mobilier urbain, "
-    "organisation urbaine crédible, "
-    "photo professionnelle, caméra plein format, "
-    "objectif 35mm, perspective réaliste, "
-    "lumière naturelle, ombres réalistes, "
-    "rendu photographique ultra réaliste, "
-    "high detail, sharp focus"
+    "Photographie réaliste d’un chat Siamois adulte, "
+    "pelage court crème avec masque brun foncé sur le visage, "
+    "les oreilles, les pattes et la queue, "
+    "yeux bleus naturels en forme d’amande, "
+    "proportions anatomiquement réalistes, "
+    "texture du poil très détaillée, "
+    "photo DSLR professionnelle, objectif 85mm, "
+    "faible profondeur de champ, "
+    "éclairage naturel doux, lumière réaliste, "
+    "arrière-plan flou, "
+    "animal réel, photo animalière, "
+    "ultra realistic, high detail, sharp focus"
 )
 
 negative_prompt = (
-    "illustration, concept art, cgi, render, cartoon, "
-    "fantasy city, sci-fi, futuristic, "
-    "warped perspective, distorted geometry, "
-    "floating buildings, impossible structures, "
-    "toy city, low detail, blurry"
+    "cartoon, illustration, anime, 3d render, cgi, "
+    "kawaii, cute, chibi, doll, toy, "
+    "big eyes, oversized head, "
+    "stylized, painting, drawing, "
+    "unrealistic proportions, smooth plastic skin"
 )
 
 # Seed reproductible
