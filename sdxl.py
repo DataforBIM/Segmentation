@@ -111,4 +111,3 @@ result = cloudinary.uploader.upload(
 
 print("✅ Image générée et uploadée sur Cloudinary")
 print("🌐 URL :", result["secure_url"])
-`
