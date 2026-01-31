@@ -1,23 +1,5 @@
-import os
 import torch
-from huggingface_hub import login
 from diffusers import FluxPipeline
-
-# -------------------------
-# Hugging Face Login
-# -------------------------
-token = os.environ.get("HF_TOKEN")
-if token is None:
-    raise RuntimeError("HF_TOKEN non défini")
-
-login(token=token)
-print("✅ Login Hugging Face OK")
-
-# -------------------------
-# Device
-# -------------------------
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print("🚀 Device:", device)
 
 # -------------------------
 # Modèle FLUX
@@ -28,14 +10,17 @@ MODEL_ID = "black-forest-labs/FLUX.1-dev"
 
 pipe = FluxPipeline.from_pretrained(
     MODEL_ID,
-    torch_dtype=torch.bfloat16,
+    torch_dtype=torch.float16,     # plus stable que BF16 en test
+    device_map="auto",             # gestion automatique CPU/GPU
 )
 
-pipe.to(device)
-
-# Optimisations serveur
-pipe.enable_attention_slicing()
+# Offload CPU (OBLIGATOIRE pour FLUX)
 pipe.enable_model_cpu_offload()
+
+# Optimisations mémoire
+pipe.enable_attention_slicing()
+
+print("✅ FLUX chargé")
 
 # -------------------------
 # Prompt
