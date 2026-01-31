@@ -1,0 +1,22 @@
+# PyTorch (CUDA 12.x)
+torch>=2.1.0
+torchvision>=0.16.0
+
+# Diffusers & Hugging Face (FLUX compatible)
+diffusers>=0.30.0
+transformers>=4.38.0
+accelerate>=0.26.0
+huggingface_hub>=0.20.3
+safetensors>=0.4.2
+
+# Tokenizers
+sentencepiece>=0.1.99
+protobuf>=4.25.0
+
+# Image processing
+Pillow>=10.0.0
+numpy>=1.26.0
+opencv-python>=4.9.0
+
+# Cloud upload
+cloudinary>=1.36.0

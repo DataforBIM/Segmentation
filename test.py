@@ -4,6 +4,9 @@ import cloudinary
 import cloudinary.uploader
 from diffusers import FluxPipeline
 
+
+#Pour le test de ce code, dans le serveur vastai, j'ai utilisé le docker suivant: https://hub.docker.com/r/vastai/base-image/
+#J'ai sélectionné la carte graphique 1XA100 SXM4 40GB de VRAM
 # -------------------------
 # Cloudinary config (env)
 # -------------------------
