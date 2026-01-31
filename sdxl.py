@@ -86,7 +86,7 @@ image.save(local_path)
 result = cloudinary.uploader.upload(
     local_path,
     folder="sdxl_outputs",
-    public_id="sdxl_chat,
+    public_id="sdxl_chat",
     overwrite=True
 )
 
