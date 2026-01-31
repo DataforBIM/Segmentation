@@ -42,13 +42,12 @@ prompt = (
     "yeux bleus naturels en forme d’amande, "
     "proportions anatomiquement réalistes, "
     "texture du poil très détaillée, "
-    "photo DSLR professionnelle, objectif 85mm, "
     "faible profondeur de champ, "
     "éclairage naturel doux, lumière réaliste, "
     "arrière-plan flou, "
     "animal réel, photo animalière, "
     "je veux voir tout l'animal dans le cadre, "
-    "ultra realistic, high detail, sharp focus"
+    "ultra realistic, high detail"
 )
 
 negative_prompt = (
