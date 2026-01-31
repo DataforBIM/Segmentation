@@ -17,7 +17,7 @@ cloudinary.config(
 # =====================================================
 # Chargement du modèle SDXL réaliste
 # =====================================================
-MODEL_ID = "SG161222/RealVisXL_V4.0"
+MODEL_ID = "emilianJR/epiCRealismXL"
 
 pipe = StableDiffusionXLPipeline.from_pretrained(
     MODEL_ID,
