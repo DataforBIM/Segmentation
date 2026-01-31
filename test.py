@@ -4,9 +4,6 @@ import cloudinary
 import cloudinary.uploader
 from diffusers import FluxPipeline
 
-
-#Pour le test de ce code, dans le serveur vastai, j'ai utilisé le docker suivant: https://hub.docker.com/r/vastai/base-image/
-#J'ai sélectionné la carte graphique 1XA100 SXM4 40GB de VRAM
 # -------------------------
 # Cloudinary config (env)
 # -------------------------
@@ -21,33 +18,65 @@ cloudinary.config(
 # Modèle FLUX
 # -------------------------
 MODEL_ID = "black-forest-labs/FLUX.1-dev"
-# MODEL_ID = "black-forest-labs/FLUX.1-schnell"
 
 pipe = FluxPipeline.from_pretrained(
     MODEL_ID,
     torch_dtype=torch.float16,
-    device_map="balanced"
+    device_map="cuda"  # 🔹 A100 dédiée → pas besoin de "balanced"
 )
 
+# Optimisations mémoire / perf
 pipe.enable_attention_slicing()
+pipe.enable_vae_slicing()
+
+# Si dispo (souvent OK sur Vast)
+try:
+    pipe.enable_xformers_memory_efficient_attention()
+except Exception:
+    pass
+
 print("✅ FLUX chargé")
 
 # -------------------------
-# Prompt
+# Prompt (réalisme forcé)
 # -------------------------
 prompt = (
-    "je veux une image réaliste d'un chat Siamois réaliste"
+    "Photographie réaliste d’un chat Siamois adulte, "
+    "pelage court crème avec masque brun foncé sur le visage, "
+    "les oreilles, les pattes et la queue, "
+    "yeux bleus naturels en forme d’amande, "
+    "proportions anatomiquement réalistes, "
+    "texture du poil très détaillée, "
+    "photo DSLR professionnelle, objectif 85mm, "
+    "faible profondeur de champ, "
+    "éclairage naturel doux, lumière réaliste, "
+    "arrière-plan flou, "
+    "animal réel, photo animalière, "
+    "ultra realistic, high detail, sharp focus"
 )
+
+negative_prompt = (
+    "cartoon, illustration, anime, 3d render, cgi, "
+    "kawaii, cute, chibi, doll, toy, "
+    "big eyes, oversized head, "
+    "stylized, painting, drawing, "
+    "unrealistic proportions, smooth plastic skin"
+)
+
+# Seed fixe pour debug
+generator = torch.Generator(device="cuda").manual_seed(42)
 
 # -------------------------
 # Génération
 # -------------------------
 image = pipe(
     prompt=prompt,
-    guidance_scale=3.5,
-    num_inference_steps=30,
+    negative_prompt=negative_prompt,
+    guidance_scale=3.0,        # 🔹 FLUX aime les valeurs basses
+    num_inference_steps=32,    # 🔹 sweet spot
     height=1024,
     width=1024,
+    generator=generator
 ).images[0]
 
 # -------------------------
@@ -62,7 +91,7 @@ image.save(local_path)
 result = cloudinary.uploader.upload(
     local_path,
     folder="flux_outputs",
-    public_id="flux_floorplan",
+    public_id="flux_siamese_realistic",
     overwrite=True
 )
 
