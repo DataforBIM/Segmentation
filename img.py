@@ -14,6 +14,7 @@ from PIL import Image
 
 from diffusers import (
     StableDiffusionXLControlNetImg2ImgPipeline,
+    StableDiffusionXLImg2ImgPipeline,
     ControlNetModel
 )
 
@@ -67,6 +68,24 @@ pipe.enable_xformers_memory_efficient_attention()
 pipe.enable_vae_slicing()
 
 print("✅ SDXL + ControlNet chargé")
+
+
+# =====================================================
+# SDXL REFINER (améliore détails, visages, textures)
+# =====================================================
+REFINER_MODEL = "stabilityai/stable-diffusion-xl-refiner-1.0"
+
+refiner = StableDiffusionXLImg2ImgPipeline.from_pretrained(
+    REFINER_MODEL,
+    torch_dtype=torch.float16,
+    variant="fp16",
+    use_safetensors=True
+).to("cuda")
+
+refiner.enable_xformers_memory_efficient_attention()
+refiner.enable_vae_slicing()
+
+print("✅ SDXL Refiner chargé")
 
 
 # =====================================================
@@ -300,7 +319,8 @@ FINAL_NEGATIVE_PROMPT = f"{SCENE_NEGATIVE_PROMPT}, {BASE_NEGATIVE}"
 # =====================================================
 generator = torch.Generator("cuda").manual_seed(123456)
 
-image = pipe(
+# Étape 1 : Génération avec ControlNet
+base_image = pipe(
     prompt=FINAL_PROMPT,
     negative_prompt=FINAL_NEGATIVE_PROMPT,
     image=init_image,
@@ -315,6 +335,21 @@ image = pipe(
     height=1024,
     generator=generator
 ).images[0]
+
+print("🚧 Étape 1/2 : Image de base générée")
+
+# Étape 2 : Refinement (améliore détails, visages, textures)
+image = refiner(
+    prompt=FINAL_PROMPT,
+    negative_prompt=FINAL_NEGATIVE_PROMPT,
+    image=base_image,
+    strength=0.25,                      # Léger pour garder la structure
+    guidance_scale=7.5,
+    num_inference_steps=20,
+    generator=torch.Generator("cuda").manual_seed(123456)
+).images[0]
+
+print("✅ Étape 2/2 : Refinement terminé")
 
 
 # =====================================================
