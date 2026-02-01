@@ -37,7 +37,7 @@ print("✅ SDXL RealVis XL chargé avec succès")
 # =====================================================
 prompt = (
     "Photographie architecturale réaliste d’un bâtiment contemporain, "
-    "vue extérieure soigneusement cadrée, "
+    "Vue aérienne pris en contre plongée, "
 
     "architecture moderne haut de gamme, lignes épurées, "
     "volumes lisibles et bien proportionnés, "
@@ -105,7 +105,7 @@ image.save(local_path)
 result = cloudinary.uploader.upload(
     local_path,
     folder="sdxl_outputs",
-    public_id="sdxl_architectural_view",
+    public_id="sdxl_architectural_view02",
     overwrite=True
 )
 
