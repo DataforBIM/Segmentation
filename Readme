@@ -1,0 +1,7 @@
+✅ analyse automatique de l’image d’entrée
+✅ l’IA détermine seule le type de scène (intérieur / extérieur / aérien)
+✅ sélection automatique du SCENE_PROMPT approprié
+✅ prompt générique + prompt scène + prompt utilisateur
+✅ SDXL + ControlNet créatif mais contrôlable
+✅ Cloudinary input → output
+✅ prêt batch / API / prod

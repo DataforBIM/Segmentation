@@ -17,11 +17,13 @@ from diffusers import (
     ControlNetModel
 )
 
+from transformers import pipeline
+
 
 # =====================================================
 # SÉCURISATION DES VARIABLES D’ENV
 # =====================================================
-def get_env(name):
+def get_env(name: str) -> str:
     value = os.getenv(name)
     if not value:
         raise RuntimeError(f"❌ Variable d’environnement manquante : {name}")
@@ -67,22 +69,78 @@ print("✅ SDXL + ControlNet chargé")
 
 
 # =====================================================
-# CHARGER IMAGE DEPUIS URL
+# MODÈLE VISION — DÉTECTION DE SCÈNE
 # =====================================================
-def load_image_from_url(url):
+scene_captioner = pipeline(
+    "image-to-text",
+    model="Salesforce/blip-image-captioning-base",
+    device=0
+)
+
+print("✅ Modèle vision (scene detection) chargé")
+
+
+# =====================================================
+# UTILITAIRES IMAGE
+# =====================================================
+def load_image_from_url(url: str) -> Image.Image:
     r = requests.get(url, timeout=30)
     r.raise_for_status()
     return Image.open(BytesIO(r.content)).convert("RGB")
 
 
-# =====================================================
-# CANNY EDGE (CONTROL IMAGE)
-# =====================================================
-def make_canny(image, low=80, high=160):
+def make_canny(image: Image.Image, low=80, high=160) -> Image.Image:
     img = np.array(image)
     edges = cv2.Canny(img, low, high)
     edges = np.stack([edges] * 3, axis=-1)
     return Image.fromarray(edges)
+
+
+# =====================================================
+# DÉTECTION AUTOMATIQUE DU TYPE DE SCÈNE
+# =====================================================
+def detect_scene_type(image: Image.Image) -> str:
+    caption = scene_captioner(image)[0]["generated_text"].lower()
+    print("🧠 Caption IA :", caption)
+
+    if any(w in caption for w in ["aerial", "drone", "top view", "bird"]):
+        return "AERIAL"
+
+    if any(w in caption for w in ["room", "interior", "bedroom", "living"]):
+        return "INTERIOR"
+
+    return "EXTERIOR"
+
+
+# =====================================================
+# SCENE PROMPTS (FR + EN)
+# =====================================================
+SCENE_PROMPTS = {
+    "INTERIOR": (
+        "architecture intérieure contemporaine, "
+        "interior architectural photography, "
+        "wide shot interior, "
+        "camera at eye level, "
+        "straight verticals, "
+        "realistic room proportions"
+    ),
+    "EXTERIOR": (
+        "architecture contemporaine extérieure, "
+        "exterior architectural photography, "
+        "wide shot exterior, "
+        "building fully visible, "
+        "camera at eye level, "
+        "straight verticals, "
+        "realistic scale and proportions"
+    ),
+    "AERIAL": (
+        "vue aérienne architecturale, "
+        "aerial architectural photography, "
+        "drone view, "
+        "oblique aerial perspective, "
+        "large scale context visible"
+    )
+}
 
 
 # =====================================================
@@ -96,47 +154,67 @@ INPUT_IMAGE_URL = (
 init_image = load_image_from_url(INPUT_IMAGE_URL)
 control_image = make_canny(init_image)
 
-print("📥 Image source + ControlNet prêts")
+scene_type = detect_scene_type(init_image)
+SCENE_PROMPT = SCENE_PROMPTS[scene_type]
+
+print(f"🎯 SCÈNE DÉTECTÉE : {scene_type}")
 
 
 # =====================================================
-# PROMPT — DIRECTIF (OBLIGATOIRE)
+# PROMPT LAYERING
 # =====================================================
-prompt = (
-    "Photographie d’intérieur réaliste d’une chambre contemporaine haut de gamme, "
-    "ambiance nettement plus chaleureuse que l’image d’origine, "
-    "lumière naturelle directionnelle améliorée, "
-    "contraste plus marqué, "
-    "textures plus riches et plus détaillées, "
-    "matériaux plus nobles, bois naturel clair, textile premium, "
-    "rendu photo immobilière professionnelle, "
+
+BASE_PROMPT = (
+    "Photographie architecturale réaliste haut de gamme, "
+    "architecture contemporaine, "
+    "volumes clairs et bien proportionnés, "
+    "géométrie cohérente et stable, "
+    "matériaux crédibles et réalistes, "
+    "lumière naturelle physiquement correcte, "
+    "ombres cohérentes, "
+    "composition architecturale équilibrée, "
+    "photographie professionnelle, "
     "ultra realistic, high detail, sharp focus"
 )
 
-negative_prompt = (
+USER_PROMPT = (
+    "Changer la couleure du draps "
+    "vers un bleu ciel doux et apaisant"
+)
+
+FINAL_PROMPT = f"{BASE_PROMPT}, {SCENE_PROMPT}, {USER_PROMPT}"
+
+
+# =====================================================
+# NEGATIVE PROMPT GÉNÉRIQUE
+# =====================================================
+FINAL_NEGATIVE_PROMPT = (
     "cartoon, illustration, anime, painting, "
     "3d render, cgi, unreal engine look, "
+    "plastic materials, low poly, "
     "distorted geometry, warped walls, "
-    "broken perspective, "
-    "fisheye, extreme distortion, "
+    "broken perspective, impossible architecture, "
+    "floating objects, unrealistic scale, "
+    "fisheye, extreme wide angle distortion, "
     "overexposed, underexposed, flat lighting, "
+    "blurry, noise, artifacts, "
     "people, text, logo, watermark"
 )
 
 
 # =====================================================
-# GÉNÉRATION — RÉGLAGES QUI FONCTIONNENT
+# GÉNÉRATION — CRÉATIVE MAIS CONTRÔLÉE
 # =====================================================
-generator = torch.Generator("cuda").manual_seed(987654)
+generator = torch.Generator("cuda").manual_seed(123456)
 
 image = pipe(
-    prompt=prompt,
-    negative_prompt=negative_prompt,
+    prompt=FINAL_PROMPT,
+    negative_prompt=FINAL_NEGATIVE_PROMPT,
     image=init_image,
     control_image=control_image,
 
-    strength=0.40,                          # 🔥 LIBERTÉ AVEC CONTROLNET
-    controlnet_conditioning_scale=0.65,     # 🔥 CLÉ ABSOLUE
+    strength=0.40,
+    controlnet_conditioning_scale=0.65,
     guidance_scale=7.0,
     num_inference_steps=40,
 
@@ -149,10 +227,10 @@ image = pipe(
 # =====================================================
 # SAUVEGARDE LOCALE
 # =====================================================
-OUTPUT_PATH = "sdxl_controlnet_chambre_creatif.png"
+OUTPUT_PATH = "sdxl_archviz_auto_scene.png"
 image.save(OUTPUT_PATH)
 
-print("💾 Image générée (différence visible)")
+print("💾 Image générée avec succès")
 
 
 # =====================================================
@@ -160,8 +238,8 @@ print("💾 Image générée (différence visible)")
 # =====================================================
 result = cloudinary.uploader.upload(
     OUTPUT_PATH,
-    folder="sdxl_outputs/controlnet",
-    public_id="BAC_CHAMBRE_controlnet_creatif",
+    folder="sdxl_outputs/auto_scene",
+    public_id="archviz_auto_scene",
     overwrite=True
 )
 
