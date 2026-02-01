@@ -196,7 +196,9 @@ BASE_PROMPT = (
 # 🔧 Astuce : phrase utilisateur en FR + EN = meilleur contrôle
 # ⚠️ USER_PROMPT en PREMIER pour maximiser son influence
 USER_PROMPT = (
-    "Ajoute une personne couchée au lit, "
+    "une personne qui dort paisiblement dans le lit, "
+    "a person sleeping peacefully in the bed, "
+    "realistic human figure, natural sleeping pose, covered with blanket"
 )
 
 FINAL_PROMPT = f"{USER_PROMPT}, {BASE_PROMPT}, {SCENE_PROMPT}"
@@ -215,9 +217,8 @@ FINAL_NEGATIVE_PROMPT = (
     "fisheye, extreme wide angle distortion, "
     "overexposed, underexposed, flat lighting, "
     "blurry, noise, artifacts, "
-    "people, text, logo, watermark, "
-    "added lights, spotlights, spots, ceiling lights, new lamps, "
-    "extra furniture, added objects, new elements"
+    "text, logo, watermark, "
+    "deformed face, deformed hands, extra limbs"
 )
 
 
@@ -232,9 +233,9 @@ image = pipe(
     image=init_image,
     control_image=control_image,
 
-    strength=0.50,                      # ⬆️ assez pour changer la couleur
-    controlnet_conditioning_scale=0.55, # ⬆️ augmenté pour garder la structure originale
-    guidance_scale=8.5,                 # ⬆️ augmenté pour mieux suivre le prompt
+    strength=0.70,                      # ⬆️ augmenté pour permettre ajout de personne
+    controlnet_conditioning_scale=0.40, # ⬇️ réduit pour plus de liberté
+    guidance_scale=9.0,                 # ⬆️ augmenté pour mieux suivre le prompt
     num_inference_steps=40,
 
     width=1024,
