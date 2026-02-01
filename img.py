@@ -130,6 +130,34 @@ def make_canny(image: Image.Image, low=80, high=160) -> Image.Image:
     return Image.fromarray(edges)
 
 
+def get_output_dimensions(image: Image.Image, max_size: int = 1024) -> tuple:
+    """
+    Calcule les dimensions de sortie en préservant le ratio d'aspect.
+    Les dimensions sont arrondies au multiple de 8 (requis par SDXL).
+    """
+    width, height = image.size
+    aspect_ratio = width / height
+    
+    if width >= height:
+        # Image paysage ou carrée
+        new_width = max_size
+        new_height = int(max_size / aspect_ratio)
+    else:
+        # Image portrait
+        new_height = max_size
+        new_width = int(max_size * aspect_ratio)
+    
+    # Arrondir au multiple de 8 (requis par SDXL)
+    new_width = (new_width // 8) * 8
+    new_height = (new_height // 8) * 8
+    
+    # S'assurer d'un minimum de 512
+    new_width = max(512, new_width)
+    new_height = max(512, new_height)
+    
+    return new_width, new_height
+
+
 # =====================================================
 # 🔧 MODIF : DÉTECTION SCÈNE STABLE
 # =====================================================
@@ -283,6 +311,11 @@ INPUT_IMAGE_URL = (
 init_image = load_image_from_url(INPUT_IMAGE_URL)
 control_image = make_canny(init_image)
 
+# Calculer dimensions de sortie (préserve le ratio)
+output_width, output_height = get_output_dimensions(init_image)
+print(f"📍 Image d'entrée : {init_image.size[0]}x{init_image.size[1]}")
+print(f"📍 Dimensions de sortie : {output_width}x{output_height} (ratio préservé)")
+
 scene_type = detect_scene_type(init_image)
 SCENE_PROMPT = SCENE_PROMPTS[scene_type]
 SCENE_NEGATIVE_PROMPT = NEGATIVE_PROMPTS[scene_type]
@@ -322,10 +355,7 @@ BASE_PROMPT = (
 # 🔧 Astuce : phrase utilisateur en FR + EN = meilleur contrôle
 # ⚠️ USER_PROMPT en PREMIER pour maximiser son influence
 USER_PROMPT = (
-    "une personne qui dort paisiblement dans le lit, visage visible et détendu, "
-    "a person sleeping peacefully in the bed, visible relaxed face, "
-    "realistic human with clear facial features, natural sleeping pose, "
-    "head on pillow, face partially visible, covered with blanket"
+    "Améliorer la qualité de l'image,je veux une vue aérienne plus réaliste"
 )
 
 FINAL_PROMPT = f"{USER_PROMPT}, {BASE_PROMPT}, {SCENE_PROMPT}"
@@ -360,8 +390,8 @@ base_image = pipe(
     guidance_scale=9.0,                 # pour suivre précisément le prompt
     num_inference_steps=40,
 
-    width=1024,
-    height=1024,
+    width=output_width,                 # Dimensions calculées (ratio préservé)
+    height=output_height,
     generator=generator
 ).images[0]
 
