@@ -107,7 +107,7 @@ image.save(local_path)
 result = cloudinary.uploader.upload(
     local_path,
     folder="sdxl_outputs",
-    public_id="sdxl_architectural_view02",
+    public_id="sdxl_architectural_view03",
     overwrite=True
 )
 
