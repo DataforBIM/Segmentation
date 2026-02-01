@@ -17,6 +17,8 @@ from diffusers import (
     StableDiffusionXLImg2ImgPipeline,
     ControlNetModel
 )
+from realesrgan import RealESRGANer
+from basicsr.archs.rrdbnet_arch import RRDBNet
 
 # 🔧 MODIF : on n'utilise PLUS pipeline()
 from transformers import BlipProcessor, BlipForConditionalGeneration
@@ -48,7 +50,9 @@ print("✅ Cloudinary configuré")
 # =====================================================
 # CONFIGURATION
 # =====================================================
-USE_REFINER = True  # True = utilise le refiner, False = sans refiner
+USE_REFINER = True   # True = utilise le refiner SDXL
+USE_UPSCALER = True  # True = utilise Real-ESRGAN pour améliorer la qualité
+USE_SDXL = True      # True = utilise SDXL, False = upscale seulement
 
 
 # =====================================================
@@ -95,6 +99,30 @@ if USE_REFINER:
     print("✅ SDXL Refiner chargé")
 else:
     print("⚠️ Refiner désactivé")
+
+
+# =====================================================
+# REAL-ESRGAN (Amélioration qualité / Upscaling)
+# =====================================================
+if USE_UPSCALER:
+    # Modèle RealESRGAN x4
+    esrgan_model = RRDBNet(
+        num_in_ch=3, num_out_ch=3, num_feat=64, 
+        num_block=23, num_grow_ch=32, scale=4
+    )
+    
+    upscaler = RealESRGANer(
+        scale=4,
+        model_path="https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth",
+        model=esrgan_model,
+        tile=400,           # Traite par tuiles pour économiser VRAM
+        tile_pad=10,
+        pre_pad=0,
+        half=True           # FP16 pour économiser VRAM
+    )
+    print("✅ Real-ESRGAN (upscaler) chargé")
+else:
+    print("⚠️ Upscaler désactivé")
 
 
 # =====================================================
@@ -378,41 +406,64 @@ FINAL_NEGATIVE_PROMPT = f"{SCENE_NEGATIVE_PROMPT}, {BASE_NEGATIVE}"
 # =====================================================
 generator = torch.Generator("cuda").manual_seed(123456)
 
-# Étape 1 : Génération avec ControlNet
-base_image = pipe(
-    prompt=FINAL_PROMPT,
-    negative_prompt=FINAL_NEGATIVE_PROMPT,
-    image=init_image,
-    control_image=control_image,
-
-    strength=0.45,                      # ⬇️ réduit pour minimiser changements non demandés
-    controlnet_conditioning_scale=0.70, # ⬆️ augmenté pour forcer respect de la structure
-    guidance_scale=9.0,                 # pour suivre précisément le prompt
-    num_inference_steps=40,
-
-    width=output_width,                 # Dimensions calculées (ratio préservé)
-    height=output_height,
-    generator=generator
-).images[0]
-
-if USE_REFINER:
-    print("🚧 Étape 1/2 : Image de base générée")
-    
-    # Étape 2 : Refinement (améliore détails, visages, textures)
-    image = refiner(
+if USE_SDXL:
+    # Étape 1 : Génération avec ControlNet
+    base_image = pipe(
         prompt=FINAL_PROMPT,
         negative_prompt=FINAL_NEGATIVE_PROMPT,
-        image=base_image,
-        strength=0.25,                      # Léger pour garder la structure
-        guidance_scale=7.5,
-        num_inference_steps=20,
-        generator=torch.Generator("cuda").manual_seed(123456)
+        image=init_image,
+        control_image=control_image,
+
+        strength=0.30,                      # ⬇️ très bas pour amélioration qualité
+        controlnet_conditioning_scale=0.80, # ⬆️ très élevé pour garder la structure
+        guidance_scale=9.0,
+        num_inference_steps=40,
+
+        width=output_width,
+        height=output_height,
+        generator=generator
     ).images[0]
-    
-    print("✅ Étape 2/2 : Refinement terminé")
+
+    if USE_REFINER:
+        print("🚧 Étape 1/2 : Image de base générée")
+        
+        # Étape 2 : Refinement (améliore détails)
+        image = refiner(
+            prompt=FINAL_PROMPT,
+            negative_prompt=FINAL_NEGATIVE_PROMPT,
+            image=base_image,
+            strength=0.20,
+            guidance_scale=7.5,
+            num_inference_steps=20,
+            generator=torch.Generator("cuda").manual_seed(123456)
+        ).images[0]
+        
+        print("✅ Étape 2/2 : Refinement terminé")
+    else:
+        image = base_image
+        print("✅ SDXL terminé")
 else:
-    image = base_image
-    print("✅ Image générée (sans refiner)")
+    # Pas de SDXL, juste l'image originale
+    image = init_image
+    print("⚠️ SDXL désactivé, passage direct à l'upscaling")
+
+
+# =====================================================
+# UPSCALING (Real-ESRGAN)
+# =====================================================
+if USE_UPSCALER:
+    print("🔍 Upscaling avec Real-ESRGAN...")
+    
+    # Convertir PIL → numpy pour Real-ESRGAN
+    img_np = np.array(image)
+    
+    # Upscale x4
+    upscaled_np, _ = upscaler.enhance(img_np, outscale=4)
+    
+    # Convertir numpy → PIL
+    image = Image.fromarray(upscaled_np)
+    
+    print(f"✅ Upscaling terminé : {image.size[0]}x{image.size[1]}")
 
 
 # =====================================================
