@@ -160,8 +160,84 @@ SCENE_PROMPTS = {
 }
 
 
+# =====================================================# NEGATIVE PROMPTS PAR TYPE DE SCÈNE
 # =====================================================
-# IMAGE D’ENTRÉE
+NEGATIVE_PROMPTS = {
+    "INTERIOR": (
+        # Qualité générale
+        "cartoon, illustration, anime, painting, sketch, 3d render, cgi, "
+        "blurry, low quality, noise, artifacts, "
+        
+        # Spécifique intérieur
+        "warped walls, curved walls, distorted perspective, "
+        "broken geometry, impossible room layout, "
+        "floating furniture, disconnected objects, "
+        "wrong ceiling height, disproportionate room, "
+        
+        # Anatomie (si personne)
+        "deformed face, bad anatomy, extra limbs, fused fingers, "
+        "mutated hands, ugly face, "
+        
+        # Changements non désirés
+        "added lights, new spotlights, changed wall color, "
+        "extra furniture, removed furniture, modified ceiling, "
+        
+        # Autres
+        "text, watermark, logo"
+    ),
+    
+    "EXTERIOR": (
+        # Qualité générale
+        "cartoon, illustration, anime, painting, sketch, 3d render, cgi, "
+        "blurry, low quality, noise, artifacts, "
+        
+        # Spécifique extérieur
+        "distorted building, impossible architecture, "
+        "warped façade, broken perspective, tilted verticals, "
+        "unrealistic scale, giant trees, tiny cars, "
+        "floating buildings, disconnected structure, "
+        
+        # Nature et environnement
+        "fake trees, plastic plants, wrong vegetation scale, "
+        "unnatural sky, fake clouds, "
+        
+        # Anatomie (si personne)
+        "deformed face, bad anatomy, extra limbs, "
+        
+        # Changements non désirés
+        "added windows, removed floors, changed materials, "
+        "extra buildings, modified landscape, "
+        
+        # Autres
+        "text, watermark, logo"
+    ),
+    
+    "AERIAL": (
+        # Qualité générale
+        "cartoon, illustration, anime, painting, sketch, 3d render, cgi, "
+        "blurry, low quality, noise, artifacts, "
+        
+        # Spécifique aérien
+        "distorted perspective, impossible angle, "
+        "warped buildings, curved straight lines, "
+        "unrealistic scale, wrong proportions, "
+        "floating structures, disconnected roads, "
+        
+        # Environnement urbain
+        "fake vegetation, plastic trees, "
+        "unnatural patterns, grid distortion, "
+        
+        # Changements non désirés
+        "added buildings, removed structures, "
+        "modified urban layout, changed landscape, "
+        
+        # Autres
+        "text, watermark, logo, people, cars"
+    )
+}
+
+
+# =====================================================# IMAGE D’ENTRÉE
 # =====================================================
 INPUT_IMAGE_URL = (
     "https://res.cloudinary.com/ddmzn1508/image/upload/"
@@ -173,6 +249,7 @@ control_image = make_canny(init_image)
 
 scene_type = detect_scene_type(init_image)
 SCENE_PROMPT = SCENE_PROMPTS[scene_type]
+SCENE_NEGATIVE_PROMPT = NEGATIVE_PROMPTS[scene_type]
 
 print(f"🎯 SCÈNE DÉTECTÉE : {scene_type}")
 
@@ -205,35 +282,15 @@ FINAL_PROMPT = f"{USER_PROMPT}, {BASE_PROMPT}, {SCENE_PROMPT}"
 
 
 # =====================================================
-# NEGATIVE PROMPT - GÉNÉRIQUE QUALITÉ
+# NEGATIVE PROMPT FINAL (BASE + SCÈNE)
 # =====================================================
-FINAL_NEGATIVE_PROMPT = (
-    # Style à éviter
-    "cartoon, illustration, anime, painting, sketch, drawing, "
-    "3d render, cgi, unreal engine, low poly, plastic, "
-    
-    # Déformations générales
-    "distorted, warped, deformed, malformed, disfigured, "
-    "broken, twisted, disproportionate, asymmetric, "
-    "unrealistic proportions, impossible geometry, "
-    
-    # Qualité
-    "blurry, out of focus, low quality, bad quality, "
-    "pixelated, noise, artifacts, grain, compression, "
+# Negative prompt de base commun
+BASE_NEGATIVE = (
     "overexposed, underexposed, flat lighting, "
-    
-    # Anatomie humaine (si personnage)
-    "deformed face, ugly face, bad anatomy, bad proportions, "
-    "extra limbs, missing limbs, fused fingers, mutated hands, "
-    "extra fingers, fewer fingers, long neck, floating limbs, "
-    
-    # Objets et nature
-    "floating objects, disconnected parts, broken furniture, "
-    "unnatural trees, fake plants, wrong scale, "
-    
-    # Autres
-    "text, watermark, logo, signature"
+    "compression artifacts, pixelated"
 )
+
+FINAL_NEGATIVE_PROMPT = f"{SCENE_NEGATIVE_PROMPT}, {BASE_NEGATIVE}"
 
 
 # =====================================================
