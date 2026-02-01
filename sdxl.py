@@ -76,6 +76,8 @@ negative_prompt = (
 
     "overexposed, underexposed, flat lighting, "
     "blurry, low detail, noise, "
+    "deformed objects, warped furniture, floating objects, unrealistic geometry, broken perspective, "
+
 
     "people in foreground, cars too close, "
     "text, logo, watermark"
