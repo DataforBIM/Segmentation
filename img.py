@@ -46,6 +46,12 @@ print("✅ Cloudinary configuré")
 
 
 # =====================================================
+# CONFIGURATION
+# =====================================================
+USE_REFINER = True  # True = utilise le refiner, False = sans refiner
+
+
+# =====================================================
 # MODÈLES SDXL + CONTROLNET
 # =====================================================
 SDXL_MODEL = "SG161222/RealVisXL_V4.0"
@@ -73,19 +79,22 @@ print("✅ SDXL + ControlNet chargé")
 # =====================================================
 # SDXL REFINER (améliore détails, visages, textures)
 # =====================================================
-REFINER_MODEL = "stabilityai/stable-diffusion-xl-refiner-1.0"
+if USE_REFINER:
+    REFINER_MODEL = "stabilityai/stable-diffusion-xl-refiner-1.0"
 
-refiner = StableDiffusionXLImg2ImgPipeline.from_pretrained(
-    REFINER_MODEL,
-    torch_dtype=torch.float16,
-    variant="fp16",
-    use_safetensors=True
-).to("cuda")
+    refiner = StableDiffusionXLImg2ImgPipeline.from_pretrained(
+        REFINER_MODEL,
+        torch_dtype=torch.float16,
+        variant="fp16",
+        use_safetensors=True
+    ).to("cuda")
 
-refiner.enable_xformers_memory_efficient_attention()
-refiner.enable_vae_slicing()
+    refiner.enable_xformers_memory_efficient_attention()
+    refiner.enable_vae_slicing()
 
-print("✅ SDXL Refiner chargé")
+    print("✅ SDXL Refiner chargé")
+else:
+    print("⚠️ Refiner désactivé")
 
 
 # =====================================================
@@ -187,20 +196,27 @@ NEGATIVE_PROMPTS = {
         "cartoon, illustration, anime, painting, sketch, 3d render, cgi, "
         "blurry, low quality, noise, artifacts, "
         
-        # Spécifique intérieur
+        # Spécifique intérieur - STRUCTURE
         "warped walls, curved walls, distorted perspective, "
         "broken geometry, impossible room layout, "
-        "floating furniture, disconnected objects, "
         "wrong ceiling height, disproportionate room, "
         
-        # Anatomie (si personne) - ADOUCI pour permettre visages
+        # BLOQUER AJOUTS NON DEMANDÉS
+        "added objects, new objects, extra objects, "
+        "added furniture, extra furniture, new furniture, "
+        "added lights, new lights, extra lights, spotlights, ceiling lights, "
+        "added decorations, new decorations, extra decorations, "
+        "added plants, new plants, extra plants, "
+        "added curtains, new curtains, "
+        "modified walls, changed walls, different walls, "
+        "modified floor, changed floor, different floor, "
+        "modified ceiling, changed ceiling, different ceiling, "
+        "removed objects, missing objects, "
+        
+        # Anatomie (si personne demandée)
         "multiple heads, extra limbs, three arms, four arms, "
         "fused fingers, six fingers, missing arms, "
         "no face, faceless, blank face, "
-        
-        # Changements non désirés
-        "added lights, new spotlights, changed wall color, "
-        "extra furniture, removed furniture, modified ceiling, "
         
         # Autres
         "text, watermark, logo"
@@ -271,7 +287,20 @@ scene_type = detect_scene_type(init_image)
 SCENE_PROMPT = SCENE_PROMPTS[scene_type]
 SCENE_NEGATIVE_PROMPT = NEGATIVE_PROMPTS[scene_type]
 
+# Message détaillé de confirmation
+print("\n" + "="*50)
 print(f"🎯 SCÈNE DÉTECTÉE : {scene_type}")
+print("="*50)
+if scene_type == "INTERIOR":
+    print("   📍 Type : Vue intérieure")
+    print("   🏠 Optimisé pour : chambres, salons, bureaux...")
+elif scene_type == "EXTERIOR":
+    print("   📍 Type : Vue extérieure")
+    print("   🏢 Optimisé pour : façades, bâtiments, jardins...")
+elif scene_type == "AERIAL":
+    print("   📍 Type : Vue aérienne")
+    print("   🚁 Optimisé pour : vues drone, plans larges...")
+print("="*50 + "\n")
 
 
 # =====================================================
@@ -326,9 +355,9 @@ base_image = pipe(
     image=init_image,
     control_image=control_image,
 
-    strength=0.70,                      # ⬆️ augmenté pour permettre ajout de personne
-    controlnet_conditioning_scale=0.40, # ⬇️ réduit pour plus de liberté
-    guidance_scale=9.0,                 # ⬆️ augmenté pour mieux suivre le prompt
+    strength=0.45,                      # ⬇️ réduit pour minimiser changements non demandés
+    controlnet_conditioning_scale=0.70, # ⬆️ augmenté pour forcer respect de la structure
+    guidance_scale=9.0,                 # pour suivre précisément le prompt
     num_inference_steps=40,
 
     width=1024,
@@ -336,20 +365,24 @@ base_image = pipe(
     generator=generator
 ).images[0]
 
-print("🚧 Étape 1/2 : Image de base générée")
-
-# Étape 2 : Refinement (améliore détails, visages, textures)
-image = refiner(
-    prompt=FINAL_PROMPT,
-    negative_prompt=FINAL_NEGATIVE_PROMPT,
-    image=base_image,
-    strength=0.25,                      # Léger pour garder la structure
-    guidance_scale=7.5,
-    num_inference_steps=20,
-    generator=torch.Generator("cuda").manual_seed(123456)
-).images[0]
-
-print("✅ Étape 2/2 : Refinement terminé")
+if USE_REFINER:
+    print("🚧 Étape 1/2 : Image de base générée")
+    
+    # Étape 2 : Refinement (améliore détails, visages, textures)
+    image = refiner(
+        prompt=FINAL_PROMPT,
+        negative_prompt=FINAL_NEGATIVE_PROMPT,
+        image=base_image,
+        strength=0.25,                      # Léger pour garder la structure
+        guidance_scale=7.5,
+        num_inference_steps=20,
+        generator=torch.Generator("cuda").manual_seed(123456)
+    ).images[0]
+    
+    print("✅ Étape 2/2 : Refinement terminé")
+else:
+    image = base_image
+    print("✅ Image générée (sans refiner)")
 
 
 # =====================================================
