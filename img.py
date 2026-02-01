@@ -7,8 +7,8 @@ import torch
 import requests
 import cloudinary
 import cloudinary.uploader
-
 import numpy as np
+
 from io import BytesIO
 from PIL import Image
 
@@ -67,7 +67,7 @@ print("✅ SDXL + ControlNet chargé")
 
 
 # =====================================================
-# FONCTION : LOAD IMAGE DEPUIS URL
+# CHARGER IMAGE DEPUIS URL
 # =====================================================
 def load_image_from_url(url):
     r = requests.get(url, timeout=30)
@@ -76,17 +76,17 @@ def load_image_from_url(url):
 
 
 # =====================================================
-# FONCTION : CANNY EDGE (CONTROL IMAGE)
+# CANNY EDGE (CONTROL IMAGE)
 # =====================================================
-def make_canny(image: Image.Image, low=100, high=200):
+def make_canny(image, low=80, high=160):
     img = np.array(image)
     edges = cv2.Canny(img, low, high)
-    edges = np.stack([edges]*3, axis=-1)
+    edges = np.stack([edges] * 3, axis=-1)
     return Image.fromarray(edges)
 
 
 # =====================================================
-# IMAGE D’ENTRÉE (URL CLOUDINARY)
+# IMAGE D’ENTRÉE (CLOUDINARY)
 # =====================================================
 INPUT_IMAGE_URL = (
     "https://res.cloudinary.com/ddmzn1508/image/upload/"
@@ -96,20 +96,20 @@ INPUT_IMAGE_URL = (
 init_image = load_image_from_url(INPUT_IMAGE_URL)
 control_image = make_canny(init_image)
 
-print("📥 Image + ControlNet Canny prêts")
+print("📥 Image source + ControlNet prêts")
 
 
 # =====================================================
-# PROMPT — CRÉATIF MAIS CONTRÔLÉ
+# PROMPT — DIRECTIF (OBLIGATOIRE)
 # =====================================================
 prompt = (
     "Photographie d’intérieur réaliste d’une chambre contemporaine haut de gamme, "
-    "ambiance chaleureuse et lumineuse, "
-    "lumière naturelle directionnelle, "
-    "meilleurs matériaux, bois naturel, textile premium, "
-    "volumes mieux lisibles, "
-    "contraste équilibré, "
-    "photographie immobilière professionnelle, "
+    "ambiance nettement plus chaleureuse que l’image d’origine, "
+    "lumière naturelle directionnelle améliorée, "
+    "contraste plus marqué, "
+    "textures plus riches et plus détaillées, "
+    "matériaux plus nobles, bois naturel clair, textile premium, "
+    "rendu photo immobilière professionnelle, "
     "ultra realistic, high detail, sharp focus"
 )
 
@@ -119,24 +119,27 @@ negative_prompt = (
     "distorted geometry, warped walls, "
     "broken perspective, "
     "fisheye, extreme distortion, "
-    "overexposed, underexposed, "
+    "overexposed, underexposed, flat lighting, "
     "people, text, logo, watermark"
 )
 
 
 # =====================================================
-# GÉNÉRATION SDXL + CONTROLNET
+# GÉNÉRATION — RÉGLAGES QUI FONCTIONNENT
 # =====================================================
-generator = torch.Generator("cuda").manual_seed(123456)
+generator = torch.Generator("cuda").manual_seed(987654)
 
 image = pipe(
     prompt=prompt,
     negative_prompt=negative_prompt,
     image=init_image,
     control_image=control_image,
-    strength=0.60,                 # ⭐ créatif MAIS stable
-    guidance_scale=6.5,
+
+    strength=0.40,                          # 🔥 LIBERTÉ AVEC CONTROLNET
+    controlnet_conditioning_scale=0.65,     # 🔥 CLÉ ABSOLUE
+    guidance_scale=7.0,
     num_inference_steps=40,
+
     width=1024,
     height=1024,
     generator=generator
@@ -146,10 +149,10 @@ image = pipe(
 # =====================================================
 # SAUVEGARDE LOCALE
 # =====================================================
-OUTPUT_PATH = "sdxl_controlnet_chambre.png"
+OUTPUT_PATH = "sdxl_controlnet_chambre_creatif.png"
 image.save(OUTPUT_PATH)
 
-print("💾 Image générée avec ControlNet")
+print("💾 Image générée (différence visible)")
 
 
 # =====================================================
@@ -158,7 +161,7 @@ print("💾 Image générée avec ControlNet")
 result = cloudinary.uploader.upload(
     OUTPUT_PATH,
     folder="sdxl_outputs/controlnet",
-    public_id="BAC_CHAMBRE_controlnet",
+    public_id="BAC_CHAMBRE_controlnet_creatif",
     overwrite=True
 )
 
