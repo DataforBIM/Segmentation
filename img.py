@@ -72,7 +72,7 @@ print("✅ SDXL + ControlNet chargé")
 # MODÈLE VISION — DÉTECTION DE SCÈNE
 # =====================================================
 scene_captioner = pipeline(
-    "image-to-text",
+    "image-text-to-text",
     model="Salesforce/blip-image-captioning-base",
     device=0
 )
