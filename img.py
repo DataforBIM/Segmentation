@@ -78,17 +78,8 @@ print("📥 Image source chargée :", init_image.size)
 # PROMPT – INTÉRIEUR / CHAMBRE (PHOTOREALISTE)
 # =====================================================
 prompt = (
-    "Photographie d’intérieur réaliste d’une chambre contemporaine, "
-    "architecture intérieure haut de gamme, "
-    "volumes propres et bien proportionnés, "
-    "murs lisses, matériaux réalistes, "
-    "bois, textile, surfaces mates naturelles, "
-    "mobilier bien aligné, proportions réalistes, "
-    "éclairage naturel doux venant des fenêtres, "
-    "ombres cohérentes, balance des blancs naturelle, "
-    "photographie immobilière professionnelle, "
-    "ultra realistic, high detail, sharp focus, "
-    "physically accurate lighting"
+    "Changer la couleur des deux murs latéraux en un bleu profond et apaisant, "
+
 )
 
 negative_prompt = (
