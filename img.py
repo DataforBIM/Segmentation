@@ -277,7 +277,7 @@ NEGATIVE_PROMPTS = {
 # =====================================================
 INPUT_IMAGE_URL = (
     "https://res.cloudinary.com/ddmzn1508/image/upload/"
-    "v1769938551/BAC_CHAMBRE_wd3mo8.jpg"
+    "v1769946149/1272fc67-ede0-4dbb-9d3a-f21f4ec07c79.png"
 )
 
 init_image = load_image_from_url(INPUT_IMAGE_URL)
