@@ -17,7 +17,8 @@ from diffusers import (
     ControlNetModel
 )
 
-from transformers import pipeline
+# 🔧 MODIF : on n'utilise PLUS pipeline()
+from transformers import BlipProcessor, BlipForConditionalGeneration
 
 
 # =====================================================
@@ -44,7 +45,7 @@ print("✅ Cloudinary configuré")
 
 
 # =====================================================
-# MODÈLES
+# MODÈLES SDXL + CONTROLNET
 # =====================================================
 SDXL_MODEL = "SG161222/RealVisXL_V4.0"
 CONTROLNET_MODEL = "diffusers/controlnet-canny-sdxl-1.0"
@@ -69,15 +70,20 @@ print("✅ SDXL + ControlNet chargé")
 
 
 # =====================================================
-# MODÈLE VISION — DÉTECTION DE SCÈNE
+# 🔧 MODIF MAJEURE : MODÈLE VISION BLIP (CAPTIONING)
 # =====================================================
-scene_captioner = pipeline(
-    "image-text-to-text",
-    model="Salesforce/blip-image-captioning-base",
-    device=0
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+blip_processor = BlipProcessor.from_pretrained(
+    "Salesforce/blip-image-captioning-base"
 )
 
-print("✅ Modèle vision (scene detection) chargé")
+blip_model = BlipForConditionalGeneration.from_pretrained(
+    "Salesforce/blip-image-captioning-base",
+    torch_dtype=torch.float16 if device == "cuda" else torch.float32
+).to(device)
+
+print("✅ Modèle BLIP (scene detection) chargé")
 
 
 # =====================================================
@@ -97,10 +103,21 @@ def make_canny(image: Image.Image, low=80, high=160) -> Image.Image:
 
 
 # =====================================================
-# DÉTECTION AUTOMATIQUE DU TYPE DE SCÈNE
+# 🔧 MODIF : DÉTECTION SCÈNE STABLE
 # =====================================================
 def detect_scene_type(image: Image.Image) -> str:
-    caption = scene_captioner(image)[0]["generated_text"].lower()
+    inputs = blip_processor(image, return_tensors="pt").to(device)
+
+    output = blip_model.generate(
+        **inputs,
+        max_new_tokens=40
+    )
+
+    caption = blip_processor.decode(
+        output[0],
+        skip_special_tokens=True
+    ).lower()
+
     print("🧠 Caption IA :", caption)
 
     if any(w in caption for w in ["aerial", "drone", "top view", "bird"]):
@@ -144,7 +161,7 @@ SCENE_PROMPTS = {
 
 
 # =====================================================
-# IMAGE D’ENTRÉE (CLOUDINARY)
+# IMAGE D’ENTRÉE
 # =====================================================
 INPUT_IMAGE_URL = (
     "https://res.cloudinary.com/ddmzn1508/image/upload/"
@@ -163,7 +180,6 @@ print(f"🎯 SCÈNE DÉTECTÉE : {scene_type}")
 # =====================================================
 # PROMPT LAYERING
 # =====================================================
-
 BASE_PROMPT = (
     "Photographie architecturale réaliste haut de gamme, "
     "architecture contemporaine, "
@@ -177,16 +193,17 @@ BASE_PROMPT = (
     "ultra realistic, high detail, sharp focus"
 )
 
+# 🔧 Astuce : phrase utilisateur en FR + EN = meilleur contrôle
 USER_PROMPT = (
-    "Changer la couleure du draps "
-    "vers un bleu ciel doux et apaisant"
+    "changer la couleur des draps vers un bleu ciel doux et apaisant, "
+    "change the bed sheets color to a soft sky blue"
 )
 
 FINAL_PROMPT = f"{BASE_PROMPT}, {SCENE_PROMPT}, {USER_PROMPT}"
 
 
 # =====================================================
-# NEGATIVE PROMPT GÉNÉRIQUE
+# NEGATIVE PROMPT
 # =====================================================
 FINAL_NEGATIVE_PROMPT = (
     "cartoon, illustration, anime, painting, "
@@ -203,7 +220,7 @@ FINAL_NEGATIVE_PROMPT = (
 
 
 # =====================================================
-# GÉNÉRATION — CRÉATIVE MAIS CONTRÔLÉE
+# GÉNÉRATION
 # =====================================================
 generator = torch.Generator("cuda").manual_seed(123456)
 
@@ -225,17 +242,11 @@ image = pipe(
 
 
 # =====================================================
-# SAUVEGARDE LOCALE
+# SAUVEGARDE + UPLOAD
 # =====================================================
 OUTPUT_PATH = "sdxl_archviz_auto_scene.png"
 image.save(OUTPUT_PATH)
 
-print("💾 Image générée avec succès")
-
-
-# =====================================================
-# UPLOAD CLOUDINARY
-# =====================================================
 result = cloudinary.uploader.upload(
     OUTPUT_PATH,
     folder="sdxl_outputs/auto_scene",
@@ -243,5 +254,5 @@ result = cloudinary.uploader.upload(
     overwrite=True
 )
 
-print("✅ Upload terminé")
+print("✅ Image générée et uploadée")
 print("🌐 URL :", result["secure_url"])
