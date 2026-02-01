@@ -174,9 +174,10 @@ NEGATIVE_PROMPTS = {
         "floating furniture, disconnected objects, "
         "wrong ceiling height, disproportionate room, "
         
-        # Anatomie (si personne)
-        "deformed face, bad anatomy, extra limbs, fused fingers, "
-        "mutated hands, ugly face, "
+        # Anatomie (si personne) - ADOUCI pour permettre visages
+        "multiple heads, extra limbs, three arms, four arms, "
+        "fused fingers, six fingers, missing arms, "
+        "no face, faceless, blank face, "
         
         # Changements non désirés
         "added lights, new spotlights, changed wall color, "
@@ -273,9 +274,10 @@ BASE_PROMPT = (
 # 🔧 Astuce : phrase utilisateur en FR + EN = meilleur contrôle
 # ⚠️ USER_PROMPT en PREMIER pour maximiser son influence
 USER_PROMPT = (
-    "une personne qui dort paisiblement dans le lit, "
-    "a person sleeping peacefully in the bed, "
-    "realistic human figure, natural sleeping pose, covered with blanket"
+    "une personne qui dort paisiblement dans le lit, visage visible et détendu, "
+    "a person sleeping peacefully in the bed, visible relaxed face, "
+    "realistic human with clear facial features, natural sleeping pose, "
+    "head on pillow, face partially visible, covered with blanket"
 )
 
 FINAL_PROMPT = f"{USER_PROMPT}, {BASE_PROMPT}, {SCENE_PROMPT}"
