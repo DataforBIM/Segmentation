@@ -197,7 +197,8 @@ BASE_PROMPT = (
 # ⚠️ USER_PROMPT en PREMIER pour maximiser son influence
 USER_PROMPT = (
     "changer la couleur des draps vers un bleu ciel doux et apaisant, "
-    "change the bed sheets color to a soft sky blue"
+    "change the bed sheets color to a soft sky blue, "
+    "keep all other elements exactly the same, preserve lighting"
 )
 
 FINAL_PROMPT = f"{USER_PROMPT}, {BASE_PROMPT}, {SCENE_PROMPT}"
@@ -216,7 +217,9 @@ FINAL_NEGATIVE_PROMPT = (
     "fisheye, extreme wide angle distortion, "
     "overexposed, underexposed, flat lighting, "
     "blurry, noise, artifacts, "
-    "people, text, logo, watermark"
+    "people, text, logo, watermark, "
+    "added lights, spotlights, spots, ceiling lights, new lamps, "
+    "extra furniture, added objects, new elements"
 )
 
 
@@ -231,9 +234,9 @@ image = pipe(
     image=init_image,
     control_image=control_image,
 
-    strength=0.55,                      # ⬆️ augmenté (était 0.40) pour plus de modifications
-    controlnet_conditioning_scale=0.45, # ⬇️ réduit (était 0.65) pour plus de liberté créative
-    guidance_scale=8.5,                 # ⬆️ augmenté (était 7.0) pour mieux suivre le prompt
+    strength=0.50,                      # ⬆️ assez pour changer la couleur
+    controlnet_conditioning_scale=0.55, # ⬆️ augmenté pour garder la structure originale
+    guidance_scale=8.5,                 # ⬆️ augmenté pour mieux suivre le prompt
     num_inference_steps=40,
 
     width=1024,
