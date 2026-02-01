@@ -205,20 +205,34 @@ FINAL_PROMPT = f"{USER_PROMPT}, {BASE_PROMPT}, {SCENE_PROMPT}"
 
 
 # =====================================================
-# NEGATIVE PROMPT
+# NEGATIVE PROMPT - GÉNÉRIQUE QUALITÉ
 # =====================================================
 FINAL_NEGATIVE_PROMPT = (
-    "cartoon, illustration, anime, painting, "
-    "3d render, cgi, unreal engine look, "
-    "plastic materials, low poly, "
-    "distorted geometry, warped walls, "
-    "broken perspective, impossible architecture, "
-    "floating objects, unrealistic scale, "
-    "fisheye, extreme wide angle distortion, "
+    # Style à éviter
+    "cartoon, illustration, anime, painting, sketch, drawing, "
+    "3d render, cgi, unreal engine, low poly, plastic, "
+    
+    # Déformations générales
+    "distorted, warped, deformed, malformed, disfigured, "
+    "broken, twisted, disproportionate, asymmetric, "
+    "unrealistic proportions, impossible geometry, "
+    
+    # Qualité
+    "blurry, out of focus, low quality, bad quality, "
+    "pixelated, noise, artifacts, grain, compression, "
     "overexposed, underexposed, flat lighting, "
-    "blurry, noise, artifacts, "
-    "text, logo, watermark, "
-    "deformed face, deformed hands, extra limbs"
+    
+    # Anatomie humaine (si personnage)
+    "deformed face, ugly face, bad anatomy, bad proportions, "
+    "extra limbs, missing limbs, fused fingers, mutated hands, "
+    "extra fingers, fewer fingers, long neck, floating limbs, "
+    
+    # Objets et nature
+    "floating objects, disconnected parts, broken furniture, "
+    "unnatural trees, fake plants, wrong scale, "
+    
+    # Autres
+    "text, watermark, logo, signature"
 )
 
 
