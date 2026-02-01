@@ -196,9 +196,7 @@ BASE_PROMPT = (
 # 🔧 Astuce : phrase utilisateur en FR + EN = meilleur contrôle
 # ⚠️ USER_PROMPT en PREMIER pour maximiser son influence
 USER_PROMPT = (
-    "changer la couleur des draps vers un bleu ciel doux et apaisant, "
-    "change the bed sheets color to a soft sky blue, "
-    "keep all other elements exactly the same, preserve lighting"
+    "Ajoute une personne couchée au lit, "
 )
 
 FINAL_PROMPT = f"{USER_PROMPT}, {BASE_PROMPT}, {SCENE_PROMPT}"
