@@ -16,11 +16,13 @@ def detect_scene_type(image):
     inputs = processor(image, return_tensors="pt").to(device)
     output = model.generate(**inputs, max_new_tokens=40)
     caption = processor.decode(output[0], skip_special_tokens=True).lower()
-    
+
     print(f"   📝 Description BLIP: '{caption}'")
 
     if any(w in caption for w in ["aerial", "drone", "top view", "bird", "bird's eye", "overhead", "from above", "rooftop", "roof", "google earth"]):
         return "AERIAL"
     if any(w in caption for w in ["room", "interior", "bedroom", "living", "kitchen", "bathroom", "indoor"]):
         return "INTERIOR"
-    return "EXTERIOR"
+    if any(w in caption for w in ["building", "architecture", "city", "urban", "structure"]):
+        return "EXTERIOR"
+    return "GENERIC"
