@@ -2,11 +2,8 @@
 from PIL import Image
 from config.settings import *
 from models.blip import detect_scene_type
-from models.sdxl import load_sdxl
-from models.upscaler import load_upscaler
 from steps.step1_load import load_image
 from steps.step2_preprocess import make_canny, compute_output_size
-from steps.step3_generate import generate_with_sdxl
 from steps.step4_upscale import upscale_image
 from steps.step5_upload import upload_to_cloudinary
 
@@ -16,11 +13,11 @@ def run_pipeline(
     user_prompt: str,
     # Contrôle des étapes du pipeline
     enable_scene_detection: bool = True,
-    enable_controlnet: bool = True,
-    enable_sdxl: bool = True,
-    enable_refiner: bool = True,
-    enable_upscaler: bool = True,
-    enable_upload: bool = True
+    enable_controlnet: bool = False,
+    enable_sdxl: bool = False,
+    enable_refiner: bool = False,
+    enable_upscaler: bool = False,
+    enable_upload: bool = False
 ) -> dict:
     """
     Pipeline complet de génération d'images architecturales
@@ -72,6 +69,9 @@ def run_pipeline(
     # Étape 4 & 5: Génération SDXL
     if enable_sdxl:
         print("\n🔧 Étape 4: Chargement des modèles SDXL")
+        from models.sdxl import load_sdxl
+        from steps.step3_generate import generate_with_sdxl
+        
         pipe, refiner = load_sdxl(
             SDXL_MODEL, 
             CONTROLNET_MODEL, 
@@ -102,6 +102,8 @@ def run_pipeline(
     # Étape 6: Upscaling
     if enable_upscaler and USE_UPSCALER:
         print("\n🔍 Étape 6: Upscaling Real-ESRGAN")
+        from models.upscaler import load_upscaler
+        
         upscaler = load_upscaler()
         current_image = upscale_image(current_image, upscaler)
         last_step = "upscaler"

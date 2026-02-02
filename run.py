@@ -1,8 +1,9 @@
 # Point d'entrée
-from steps.load import load_image_from_url
 from pipeline import run_pipeline
 
-image = load_image_from_url(INPUT_IMAGE_URL)
-result = run_pipeline(image, "Améliorer la qualité de l'image")
+# URL de test - remplacez par votre image
+INPUT_IMAGE_URL = "https://res.cloudinary.com/ddmzn1508/image/upload/v1770041510/969ee8_76ce65d86468468d85240537df898890_mv2_ywh2ym.avif"
 
-result.save("output.png")
+result = run_pipeline(INPUT_IMAGE_URL, "Améliorer la qualité de l'image")
+
+result["image"].save("output.png")
