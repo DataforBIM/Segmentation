@@ -1,1 +1,0 @@
-# SDXL generation
