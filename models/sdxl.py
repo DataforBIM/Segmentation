@@ -1,4 +1,4 @@
-# SDXL + ControlNet + Refiner
+# SDXL + ControlNet + Refiner - Optimisé RTX 4090 24GB
 import torch
 from diffusers import (
     StableDiffusionXLControlNetImg2ImgPipeline,
@@ -7,10 +7,17 @@ from diffusers import (
 )
 
 def load_sdxl(model_id, controlnet_id, use_refiner):
+    """
+    Charge SDXL avec ControlNet et optionnellement le Refiner
+    Optimisé pour RTX 4090 24GB
+    """
+    print("   🔧 Chargement de ControlNet...")
     controlnet = ControlNetModel.from_pretrained(
-        controlnet_id, torch_dtype=torch.float16
+        controlnet_id, 
+        torch_dtype=torch.float16
     )
 
+    print("   🎨 Chargement de SDXL Base...")
     pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(
         model_id,
         controlnet=controlnet,
@@ -19,16 +26,36 @@ def load_sdxl(model_id, controlnet_id, use_refiner):
         use_safetensors=True
     ).to("cuda")
 
-    pipe.enable_xformers_memory_efficient_attention()
+    # Optimisations pour RTX 4090 24GB
+    try:
+        pipe.enable_xformers_memory_efficient_attention()
+        print("   ⚡ XFormers activé")
+    except Exception as e:
+        print(f"   ⚠️  XFormers non disponible: {e}")
+    
     pipe.enable_vae_slicing()
+    pipe.enable_vae_tiling()  # Réduit l'utilisation VRAM
+    
+    # Avec 24GB, on peut garder le modèle entièrement en GPU
+    print("   ✅ SDXL Base chargé et optimisé")
 
     refiner = None
     if use_refiner:
+        print("   ✨ Chargement du Refiner...")
         refiner = StableDiffusionXLImg2ImgPipeline.from_pretrained(
             "stabilityai/stable-diffusion-xl-refiner-1.0",
             torch_dtype=torch.float16,
             variant="fp16",
             use_safetensors=True
         ).to("cuda")
+        
+        # Optimisations pour le refiner
+        try:
+            refiner.enable_xformers_memory_efficient_attention()
+        except:
+            pass
+        refiner.enable_vae_slicing()
+        refiner.enable_vae_tiling()
+        print("   ✅ Refiner chargé et optimisé")
 
     return pipe, refiner

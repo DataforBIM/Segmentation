@@ -14,7 +14,7 @@ def run_pipeline(
     # Contrôle des étapes du pipeline
     enable_scene_detection: bool = True,
     enable_controlnet: bool = True,
-    enable_sdxl: bool = False,
+    enable_sdxl: bool = True,
     enable_refiner: bool = False,
     enable_upscaler: bool = False,
     enable_upload: bool = False
@@ -109,7 +109,7 @@ def run_pipeline(
         print("\n🎭 Étape 5: Génération SDXL")
         current_image = generate_with_sdxl(
             image=current_image,
-            control_image=control_image,
+            control_image=control_images.get("canny") if control_images else None,
             pipe=pipe,
             refiner=refiner if enable_refiner else None,
             scene_type=scene_type,
