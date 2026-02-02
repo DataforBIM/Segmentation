@@ -13,7 +13,7 @@ def run_pipeline(
     user_prompt: str,
     # Contrôle des étapes du pipeline
     enable_scene_detection: bool = True,
-    enable_controlnet: bool = False,
+    enable_controlnet: bool = True,
     enable_sdxl: bool = False,
     enable_refiner: bool = False,
     enable_upscaler: bool = False,
