@@ -2,7 +2,7 @@
 from pipeline import run_pipeline
 
 # URL de test - remplacez par votre image
-INPUT_IMAGE_URL = "https://res.cloudinary.com/ddmzn1508/image/upload/v1770041656/sdxl_siamese_full_body_tp9mp8.png"
+INPUT_IMAGE_URL = "https://res.cloudinary.com/ddmzn1508/image/upload/v1769938551/BAC_CHAMBRE_wd3mo8.jpg"
 
 result = run_pipeline(
     INPUT_IMAGE_URL, 

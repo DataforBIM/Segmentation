@@ -2,16 +2,8 @@
 # prompts/base.py
 
 BASE_PROMPT = (
-    "Photographie architecturale réaliste haut de gamme, "
-    "architecture contemporaine, "
-    "volumes clairs et bien proportionnés, "
-    "géométrie cohérente et stable, "
-    "matériaux crédibles et réalistes, "
-    "lumière naturelle physiquement correcte, "
-    "ombres cohérentes, "
-    "composition architecturale équilibrée, "
-    "photographie professionnelle, "
-    "ultra realistic, high detail, sharp focus"
+    "Changer le revêtments du sol, "
+
 )
 
 BASE_NEGATIVE = (
