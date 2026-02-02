@@ -3,7 +3,7 @@ from PIL import Image
 from config.settings import *
 from models.blip import detect_scene_type
 from steps.step1_load import load_image
-from steps.step2_preprocess import make_canny, compute_output_size
+from steps.step2_preprocess import compute_output_size
 from steps.step4_upscale import upscale_image
 from steps.step5_upload import upload_to_cloudinary
 
@@ -59,10 +59,38 @@ def run_pipeline(
     width, height = compute_output_size(current_image, MAX_SIZE)
     print(f"   📐 Dimensions: {width}x{height}")
     
-    control_image = None
+    control_images = {}
     if enable_controlnet:
-        control_image = make_canny(current_image, save_path="output/controlnet_canny.png")
-        print("   ✅ ControlNet (Canny) activé")
+        from steps.step2_preprocess import make_canny, make_depth, make_openpose, make_normal
+        
+        # Générer tous les pass de ControlNet
+        print("   🎨 Génération de tous les pass ControlNet...")
+        
+        # Pass 1: Canny (contours)
+        try:
+            control_images["canny"] = make_canny(current_image, save_path="output/controlnet_canny.png")
+        except Exception as e:
+            print(f"   ⚠️  Erreur Canny: {e}")
+        
+        # Pass 2: Depth (profondeur)
+        try:
+            control_images["depth"] = make_depth(current_image, save_path="output/controlnet_depth.png")
+        except Exception as e:
+            print(f"   ⚠️  Erreur Depth: {e}")
+        
+        # Pass 3: OpenPose (poses)
+        try:
+            control_images["openpose"] = make_openpose(current_image, save_path="output/controlnet_openpose.png")
+        except Exception as e:
+            print(f"   ⚠️  Erreur OpenPose: {e}")
+        
+        # Pass 4: Normal (normales)
+        try:
+            control_images["normal"] = make_normal(current_image, save_path="output/controlnet_normal.png")
+        except Exception as e:
+            print(f"   ⚠️  Erreur Normal: {e}")
+        
+        print(f"   ✅ {len(control_images)} pass ControlNet générés")
     else:
         print("   ⏭️  ControlNet désactivé")
     
