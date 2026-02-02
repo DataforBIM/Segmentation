@@ -61,7 +61,7 @@ def run_pipeline(
     
     control_image = None
     if enable_controlnet:
-        control_image = make_canny(current_image)
+        control_image = make_canny(current_image, save_path="output/controlnet_canny.png")
         print("   ✅ ControlNet (Canny) activé")
     else:
         print("   ⏭️  ControlNet désactivé")
@@ -124,7 +124,7 @@ def run_pipeline(
     else:
         print("\n⏭️  Étape 7: Upload Cloudinary désactivé")
         # Sauvegarder localement à la place
-        local_path = "output_local.png"
+        local_path = "output/output_local.png"
         final_image.save(local_path)
         print(f"   💾 Image sauvegardée localement: {local_path}")
     
