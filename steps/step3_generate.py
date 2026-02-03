@@ -14,10 +14,10 @@ def generate_with_sdxl(
     width: int,
     height: int,
     seed: int = 123456,
-    strength: float = 0.15,  # Réduit pour moins modifier l'image originale
-    controlnet_scale: float = 0.65,  # Réduit pour moins d'artefacts
-    guidance_scale: float = 7.0,  # Réduit pour éviter les sur-détails
-    num_steps: int = 30  # Réduit pour moins de déformation
+    strength: float = 0.45,  # Équilibré : assez pour le sol, pas trop pour le reste
+    controlnet_scale: float = 0.7,  # Élevé pour préserver la structure
+    guidance_scale: float = 12.0,  # Élevé pour suivre strictement le prompt
+    num_steps: int = 50  # Plus de steps pour meilleure qualité
 ) -> Image.Image:
     """
     Génère l'image avec SDXL + ControlNet + Refiner
@@ -57,9 +57,9 @@ def generate_with_sdxl(
             prompt=prompt,
             negative_prompt=negative_prompt,
             image=base_image,
-            strength=0.10,  # Très léger pour juste affiner sans déformer
-            guidance_scale=6.0,  # Réduit pour éviter les artefacts
-            num_inference_steps=15,  # Moins d'étapes pour moins de changements
+            strength=0.15,  # Léger pour affiner les détails du marbre
+            guidance_scale=6.5,  # Équilibré
+            num_inference_steps=18,  # Équilibré
             generator=torch.Generator("cuda").manual_seed(seed)
         ).images[0]
         

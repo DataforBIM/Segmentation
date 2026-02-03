@@ -107,9 +107,14 @@ def run_pipeline(
         )
         
         print("\n🎭 Étape 5: Génération SDXL")
+        # Utiliser Depth au lieu de Canny pour permettre les transformations de matériaux
+        # Depth préserve la structure 3D mais pas les textures
+        control_img = control_images.get("depth") if control_images else None
+        print(f"   🎛️  ControlNet utilisé: {'Depth' if control_img else 'None'}")
+        
         current_image = generate_with_sdxl(
             image=current_image,
-            control_image=control_images.get("canny") if control_images else None,
+            control_image=control_img,
             pipe=pipe,
             refiner=refiner if enable_refiner else None,
             scene_type=scene_type,
