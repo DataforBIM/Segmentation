@@ -7,6 +7,7 @@ def segment_target_region(
     image: Image.Image,
     target: str = "floor",
     method: str = "auto",
+    scene_type: str = None,
     points: list[tuple[int, int]] = None,
     box: tuple[int, int, int, int] = None,
     dilate: int = 3,
@@ -14,12 +15,13 @@ def segment_target_region(
     save_path: str = None
 ) -> Image.Image:
     """
-    Segmente une région cible de l'image
+    Segmente une région cible de l'image selon la scène détectée
     
     Args:
         image: Image PIL d'entrée
-        target: Cible à segmenter ("floor", "wall", "ceiling", "custom")
+        target: Cible à segmenter ("floor", "wall", "ceiling", "ears", "eyes", etc.)
         method: Méthode de segmentation ("auto", "points", "box")
+        scene_type: Type de scène (ANIMAL, INTERIOR, EXTERIOR, PORTRAIT, PRODUCT)
         points: Points pour la méthode "points" [(x,y), ...]
         box: Bounding box pour la méthode "box" (x1, y1, x2, y2)
         dilate: Nombre d'itérations de dilatation du masque
@@ -33,36 +35,56 @@ def segment_target_region(
         segment_floor_auto,
         segment_with_points_sam2,
         segment_with_box_sam2,
+        segment_animal_part,
+        segment_interior_element,
+        segment_exterior_element,
+        segment_portrait_element,
         dilate_mask,
         feather_mask
     )
     
-    print(f"   🎯 Segmentation: target={target}, method={method}")
+    print(f"   🎯 Segmentation: target={target}, method={method}, scene={scene_type}")
+    
+    # === ROUTING SELON LA SCÈNE ===
+    
+    # Définir les targets par catégorie
+    animal_parts = ["ears", "eyes", "fur", "tail", "paws", "nose", "body"]
+    interior_elements = ["floor", "wall", "ceiling", "furniture", "window", "door"]
+    exterior_elements = ["sky", "ground", "vegetation", "building", "road"]
+    portrait_elements = ["face", "hair", "lips", "skin", "clothing"]
     
     # Segmentation selon la méthode
     if method == "auto":
-        if target == "floor":
-            mask = segment_floor_auto(image)
+        # Router selon la scène ET le target
+        if scene_type == "ANIMAL" or target in animal_parts:
+            mask = segment_animal_part(image, target)
+            
+        elif scene_type == "INTERIOR" or target in interior_elements:
+            mask = segment_interior_element(image, target)
+            
+        elif scene_type == "EXTERIOR" or target in exterior_elements:
+            mask = segment_exterior_element(image, target)
+            
+        elif scene_type == "PORTRAIT" or target in portrait_elements:
+            mask = segment_portrait_element(image, target)
+            
         else:
-            # Pour d'autres targets, utiliser des heuristiques
-            mask = segment_floor_auto(image)  # Fallback
+            # Fallback: essayer avec le target générique
+            if target in animal_parts:
+                mask = segment_animal_part(image, target)
+            elif target in interior_elements:
+                mask = segment_interior_element(image, target)
+            else:
+                mask = segment_floor_auto(image)  # Fallback ultime
             
     elif method == "points":
         if points is None:
-            # Points par défaut au centre-bas pour le sol
-            w, h = image.size
-            points = [
-                (w // 2, int(h * 0.8)),      # Centre bas
-                (w // 4, int(h * 0.85)),     # Gauche bas
-                (3 * w // 4, int(h * 0.85)), # Droite bas
-            ]
+            points = _get_default_points(image, target, scene_type)
         mask = segment_with_points_sam2(image, points)
         
     elif method == "box":
         if box is None:
-            # Box par défaut pour le tiers inférieur (sol)
-            w, h = image.size
-            box = (0, int(h * 0.6), w, h)
+            box = _get_default_box(image, target, scene_type)
         mask = segment_with_box_sam2(image, box)
     
     else:
@@ -88,6 +110,128 @@ def segment_target_region(
     print(f"   ✅ Masque généré: {coverage:.1f}% de couverture")
     
     return mask
+
+
+def _get_default_points(image: Image.Image, target: str, scene_type: str = None) -> list:
+    """Retourne des points par défaut selon la cible et la scène"""
+    w, h = image.size
+    
+    # === INTÉRIEUR ===
+    if target == "floor":
+        return [
+            (w // 2, int(h * 0.8)),      # Centre bas
+            (w // 4, int(h * 0.85)),     # Gauche bas
+            (3 * w // 4, int(h * 0.85)), # Droite bas
+        ]
+    elif target == "wall":
+        return [
+            (w // 2, int(h * 0.4)),      # Centre mur
+            (w // 4, int(h * 0.3)),      # Gauche mur
+            (3 * w // 4, int(h * 0.3)),  # Droite mur
+        ]
+    elif target == "ceiling":
+        return [
+            (w // 2, int(h * 0.1)),      # Centre plafond
+        ]
+    elif target == "furniture":
+        return [
+            (w // 2, int(h * 0.5)),      # Centre
+        ]
+        
+    # === ANIMAUX ===
+    elif target == "ears":
+        return [
+            (int(w * 0.3), int(h * 0.15)),  # Oreille gauche
+            (int(w * 0.7), int(h * 0.15)),  # Oreille droite
+        ]
+    elif target == "eyes":
+        return [
+            (int(w * 0.35), int(h * 0.35)), # Oeil gauche
+            (int(w * 0.65), int(h * 0.35)), # Oeil droit
+        ]
+    elif target == "nose":
+        return [
+            (int(w * 0.5), int(h * 0.5)),   # Centre du museau
+        ]
+    elif target == "paws":
+        return [
+            (int(w * 0.3), int(h * 0.85)),  # Patte avant gauche
+            (int(w * 0.7), int(h * 0.85)),  # Patte avant droite
+        ]
+    elif target == "tail":
+        return [
+            (int(w * 0.1), int(h * 0.6)),   # Queue (côté)
+        ]
+    elif target in ["fur", "body"]:
+        return [
+            (w // 2, h // 2),              # Centre de l'animal
+        ]
+        
+    # === EXTÉRIEUR ===
+    elif target == "sky":
+        return [
+            (w // 2, int(h * 0.15)),       # Haut centre
+            (w // 4, int(h * 0.1)),        # Haut gauche
+        ]
+    elif target == "vegetation":
+        return [
+            (w // 2, int(h * 0.6)),        # Centre
+        ]
+    elif target == "ground":
+        return [
+            (w // 2, int(h * 0.85)),       # Bas centre
+        ]
+        
+    # === PORTRAIT ===
+    elif target == "face":
+        return [
+            (w // 2, int(h * 0.35)),       # Centre visage
+        ]
+    elif target == "hair":
+        return [
+            (w // 2, int(h * 0.1)),        # Haut tête
+        ]
+        
+    else:
+        return [(w // 2, h // 2)]  # Centre par défaut
+
+
+def _get_default_box(image: Image.Image, target: str, scene_type: str = None) -> tuple:
+    """Retourne une box par défaut selon la cible et la scène"""
+    w, h = image.size
+    
+    # === INTÉRIEUR ===
+    if target == "floor":
+        return (0, int(h * 0.6), w, h)
+    elif target == "wall":
+        return (0, int(h * 0.1), w, int(h * 0.7))
+    elif target == "ceiling":
+        return (0, 0, w, int(h * 0.2))
+        
+    # === ANIMAUX ===
+    elif target == "ears":
+        return (int(w * 0.15), 0, int(w * 0.85), int(h * 0.3))
+    elif target == "eyes":
+        return (int(w * 0.2), int(h * 0.2), int(w * 0.8), int(h * 0.5))
+    elif target == "nose":
+        return (int(w * 0.3), int(h * 0.4), int(w * 0.7), int(h * 0.7))
+    elif target in ["fur", "body"]:
+        return (int(w * 0.1), int(h * 0.1), int(w * 0.9), int(h * 0.9))
+        
+    # === EXTÉRIEUR ===
+    elif target == "sky":
+        return (0, 0, w, int(h * 0.4))
+    elif target == "ground":
+        return (0, int(h * 0.7), w, h)
+        
+    # === PORTRAIT ===
+    elif target == "face":
+        return (int(w * 0.2), int(h * 0.1), int(w * 0.8), int(h * 0.6))
+    elif target == "hair":
+        return (int(w * 0.1), 0, int(w * 0.9), int(h * 0.3))
+        
+    else:
+        return (0, 0, w, h)  # Toute l'image par défaut
 
 
 def create_masked_image(

@@ -1,20 +1,32 @@
-# BASE_PROMPT / BASE_NEGATIVE
+# =====================================================
+# BASE PROMPT / BASE NEGATIVE — SDXL
 # prompts/base.py
+# =====================================================
 
-# Prompt optimisé pour INPAINTING (zone masquée uniquement)
+# Prompt générique optimisé pour IMG2IMG / INPAINTING
+# → la génération doit se limiter à la zone masquée
+# → respecte la structure, la perspective et l'éclairage existants
+
 BASE_PROMPT = (
-    "luxurious white Carrara marble flooring, "
-    "polished white marble tiles with subtle grey veining, "
-    "high-end Italian marble texture, "
-    "realistic marble surface, premium finish, "
-    "photorealistic, 8k quality, "
+    "photorealistic, ultra-detailed, high quality, "
+    "real-world materials and textures, "
+    "physically based rendering, realistic surface response, "
+    "natural lighting, accurate shadows, "
+    "correct perspective, consistent scale, "
+    "clean geometry, sharp focus, "
+    "seamless integration with surrounding area, "
+    "matches existing environment, "
+    "professional photography, 8k quality"
 )
 
+# Prompt négatif universel SDXL
 BASE_NEGATIVE = (
-    "dark marble, grey marble, black marble, brown marble, "
-    "dirty, stained, cracked, damaged, "
-    "cartoon, illustration, painting, "
-    "blurry, low quality, artifacts, "
-    "overexposed, underexposed, flat lighting, "
-    "compression artifacts, pixelated"
+    "cartoon, illustration, anime, painting, drawing, "
+    "stylized, fantasy, surreal, "
+    "low quality, low resolution, blurry, soft focus, "
+    "noise, grain, jpeg artifacts, compression artifacts, "
+    "overexposed, underexposed, flat lighting, harsh shadows, "
+    "wrong perspective, distorted geometry, warped, "
+    "inconsistent scale, mismatched lighting, "
+    "plastic, waxy, fake, CGI look"
 )

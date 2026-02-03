@@ -110,7 +110,8 @@ def run_pipeline(
         
         # Détection automatique de la cible si nécessaire
         if segment_target == "auto":
-            segment_target = detect_segment_target(user_prompt)
+            # Passer la scène détectée pour un meilleur filtrage
+            segment_target = detect_segment_target(user_prompt, scene_type=scene_type)
             print(f"   🎯 Cible détectée automatiquement: {get_target_description(segment_target)}")
         else:
             print(f"   🎯 Cible spécifiée manuellement: {get_target_description(segment_target)}")
@@ -119,6 +120,7 @@ def run_pipeline(
             image=current_image,
             target=segment_target,
             method=segment_method,
+            scene_type=scene_type,  # Passer la scène détectée
             dilate=SEGMENT_DILATE,
             feather=SEGMENT_FEATHER,
             save_path="output/segmentation_mask.png"
