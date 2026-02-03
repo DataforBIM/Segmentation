@@ -133,51 +133,84 @@ def run_pipeline(
     else:
         print("\n⏭️  Étape 4: Segmentation désactivée")
     
-    # Étape 5 & 6: Génération SDXL (Inpainting ou ControlNet)
+    # Étape 5 & 6: Génération SDXL (3 modes disponibles)
     if enable_sdxl:
         print("\n🔧 Étape 5: Chargement des modèles SDXL")
         
-        # Choix du mode: Inpainting (avec masque) ou ControlNet (global)
-        if mask is not None and USE_INPAINTING:
-            # Mode INPAINTING - Modification ciblée
-            print("   🎯 Mode: INPAINTING (modification ciblée)")
-            from models.sdxl import load_sdxl_inpaint
-            from steps.step3b_inpaint import generate_with_inpainting
-            
-            pipe_inpaint, refiner = load_sdxl_inpaint(enable_refiner and USE_REFINER)
-            
-            print("\n🎭 Étape 6: Génération SDXL Inpainting")
-            
-            current_image = generate_with_inpainting(
-                image=current_image,
-                mask=mask,
-                pipe_inpaint=pipe_inpaint,
-                refiner=refiner if enable_refiner else None,
-                scene_type=scene_type,
-                user_prompt=user_prompt,
-                width=width,
-                height=height,
-                seed=SEED
-            )
-            
-        elif mask is not None:
-            # Mode CONTROLNET + FUSION avec masque
-            print("   🎯 Mode: CONTROLNET + Fusion masquée")
-            from models.sdxl import load_sdxl
-            from steps.step3b_inpaint import generate_with_controlnet_inpaint
-            
-            pipe, refiner = load_sdxl(
-                SDXL_MODEL, 
-                CONTROLNET_MODEL, 
-                enable_refiner and USE_REFINER
-            )
-            
-            print("\n🎭 Étape 6: Génération ControlNet + Fusion")
-            control_img = control_images.get("depth") if control_images else None
-            
-            current_image = generate_with_controlnet_inpaint(
-                image=current_image,
-                mask=mask,
+        # Déterminer le mode de génération
+        if mask is not None:
+            if GENERATION_MODE == "hybrid":
+                # Mode HYBRIDE - ControlNet + Inpainting natif (RECOMMANDÉ)
+                print("   🎯 Mode: HYBRIDE (ControlNet + Inpainting)")
+                from models.sdxl import load_sdxl_controlnet_inpaint
+                from steps.step3b_inpaint import generate_with_hybrid_controlnet_inpaint
+                
+                pipe_hybrid, refiner = load_sdxl_controlnet_inpaint(
+                    CONTROLNET_MODEL,
+                    enable_refiner and USE_REFINER
+                )
+                
+                print("\n🎭 Étape 6: Génération HYBRIDE")
+                control_img = control_images.get("depth") if control_images else None
+                
+                if control_img is None:
+                    print("   ⚠️  ControlNet requis pour le mode hybride, génération depth...")
+                    from steps.step2_preprocess import make_depth
+                    control_img = make_depth(current_image)
+                
+                current_image = generate_with_hybrid_controlnet_inpaint(
+                    image=current_image,
+                    mask=mask,
+                    control_image=control_img,
+                    pipe_hybrid=pipe_hybrid,
+                    refiner=refiner if enable_refiner else None,
+                    scene_type=scene_type,
+                    user_prompt=user_prompt,
+                    width=width,
+                    height=height,
+                    seed=SEED
+                )
+                
+            elif GENERATION_MODE == "inpaint":
+                # Mode INPAINTING - Modification ciblée
+                print("   🎯 Mode: INPAINTING pur (sans ControlNet)")
+                from models.sdxl import load_sdxl_inpaint
+                from steps.step3b_inpaint import generate_with_inpainting
+                
+                pipe_inpaint, refiner = load_sdxl_inpaint(enable_refiner and USE_REFINER)
+                
+                print("\n🎭 Étape 6: Génération SDXL Inpainting")
+                
+                current_image = generate_with_inpainting(
+                    image=current_image,
+                    mask=mask,
+                    pipe_inpaint=pipe_inpaint,
+                    refiner=refiner if enable_refiner else None,
+                    scene_type=scene_type,
+                    user_prompt=user_prompt,
+                    width=width,
+                    height=height,
+                    seed=SEED
+                )
+                
+            else:  # controlnet
+                # Mode CONTROLNET + FUSION avec masque
+                print("   🎯 Mode: CONTROLNET + Fusion masquée")
+                from models.sdxl import load_sdxl
+                from steps.step3b_inpaint import generate_with_controlnet_inpaint
+                
+                pipe, refiner = load_sdxl(
+                    SDXL_MODEL, 
+                    CONTROLNET_MODEL, 
+                    enable_refiner and USE_REFINER
+                )
+                
+                print("\n🎭 Étape 6: Génération ControlNet + Fusion")
+                control_img = control_images.get("depth") if control_images else None
+                
+                current_image = generate_with_controlnet_inpaint(
+                    image=current_image,
+                    mask=mask,
                 control_image=control_img,
                 pipe=pipe,
                 refiner=refiner if enable_refiner else None,

@@ -1,15 +1,23 @@
-# Point d'entrée
+# Point d'entrée - TEST SEGMENTATION ONLY
 from pipeline import run_pipeline
 
 # URL de test - remplacez par votre image
-INPUT_IMAGE_URL = "https://res.cloudinary.com/ddmzn1508/image/upload/v1769938551/BAC_CHAMBRE_wd3mo8.jpg"
+INPUT_IMAGE_URL = "https://res.cloudinary.com/ddmzn1508/image/upload/v1770041656/sdxl_siamese_full_body_tp9mp8.png"
 
 result = run_pipeline(
     INPUT_IMAGE_URL, 
-    "Améliorer la qualité de l'image",
-    enable_controlnet=True,  # Activer ControlNet
-    enable_sdxl=True,        # Activer SDXL
-    enable_refiner=True      # Activer Refiner
+    "Changer la couleur des oreilles du chats",
+    enable_scene_detection=True,
+    enable_controlnet=True,       # ✅ ControlNet (préserve structure)
+    enable_segmentation=True,     # ✅ Segmentation (masque ciblé)
+    enable_sdxl=True,             # ✅ Génération
+    enable_refiner=False,
+    segment_target="auto",
+    segment_method="auto"
 )
 
-result["image"].save("output.png")
+print(f"\n🖼️  Pipeline terminé!")
+if result.get("mask"):
+    print(f"✅ Masque généré: output/segmentation_mask.png")
+    print(f"✅ Preview: output/segmentation_preview.png")
+    print(f"✅ Résultat: output/output_local.png")
