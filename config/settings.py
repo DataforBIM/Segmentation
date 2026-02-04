@@ -18,5 +18,6 @@ SEGMENT_FEATHER = 0       # Aucun feathering - transitions nettes
 # Generation mode
 USE_INPAINTING = False    # False = ControlNet + masque (cumule les deux !)
 
-SEED = 123456
+import random
+SEED = random.randint(0, 2**32 - 1)
 MAX_SIZE = 1024
