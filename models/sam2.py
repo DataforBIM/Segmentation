@@ -685,6 +685,173 @@ def segment_portrait_element(
     return _segment_with_grounded_sam2(image, text_prompt, max_size, save_path, max_det)
 
 
+def segment_aerial_elements(
+    image: Image.Image,
+    save_path: str = None
+) -> dict:
+    """
+    Segmente TOUS les éléments architecturaux d'une vue aérienne séparément
+    Pour que SDXL puisse traiter chaque élément individuellement
+    
+    Returns:
+        Dict avec:
+        - "masks": Dict de masques par élément {"building": mask, "roof": mask, ...}
+        - "combined_mask": Masque combiné de tous les éléments
+        - "elements_found": Liste des éléments détectés
+    """
+    print(f"   🚁 Segmentation aérienne multi-éléments avec SAM2")
+    
+    # Tous les éléments à détecter dans une vue aérienne
+    aerial_elements = {
+        # "building": "building. house. construction. structure.",  # DÉSACTIVÉ
+        "walls": "wall. exterior wall. facade. building wall. side wall.",
+        "ornementation": "ornementation. decoration. architectural detail. ornament. molding. trim.",
+        "roof": "roof. rooftop. building roof.",
+        "door": "door. entrance. building entrance.",
+        "road": "road. street. pavement. asphalt. roadway. highway. avenue. boulevard. driveway.",
+        "road_markings": "road marking. road line. street marking. lane marking. crosswalk. zebra crossing. painted line.",
+        "sidewalk": "sidewalk. footpath. pavement. walkway. pedestrian path. pathway. footway.",
+        "car": "car. vehicle. automobile.",
+        "vegetation": "tree. vegetation. plant. grass.",
+        "parking": "parking lot. parking space. parking area. car park.",
+    }
+    
+    # Configuration par élément
+    element_config = {
+        # "building": {"max_size": 0.80, "max_det": 20, "threshold": 0.30},  # DÉSACTIVÉ
+        "walls": {"max_size": 0.70, "max_det": 25, "threshold": 0.28},
+        "ornementation": {"max_size": 0.15, "max_det": 40, "threshold": 0.25},
+        "roof": {"max_size": 0.60, "max_det": 20, "threshold": 0.30},
+        "door": {"max_size": 0.10, "max_det": 30, "threshold": 0.25},
+        "road": {"max_size": 0.85, "max_det": 15, "threshold": 0.18},  # Seuil réduit + max_size augmenté
+        "road_markings": {"max_size": 0.05, "max_det": 50, "threshold": 0.20},
+        "sidewalk": {"max_size": 0.50, "max_det": 15, "threshold": 0.18},  # Seuil réduit + max_size augmenté
+        "car": {"max_size": 0.10, "max_det": 30, "threshold": 0.35},
+        "vegetation": {"max_size": 0.50, "max_det": 15, "threshold": 0.30},
+        "parking": {"max_size": 0.50, "max_det": 15, "threshold": 0.20},  # Seuil réduit + max_size augmenté
+    }
+    
+    w, h = image.size
+    image_area = w * h
+    
+    element_masks = {}
+    elements_found = []
+    all_detections = {}
+    
+    # Détecter et segmenter chaque type d'élément
+    for element_name, text_prompt in aerial_elements.items():
+        print(f"\n   🔍 Détection: {element_name}")
+        
+        config = element_config.get(element_name, {"max_size": 0.50, "max_det": 10, "threshold": 0.30})
+        
+        # Étape 1: Détection avec Grounding DINO
+        detections = detect_objects_grounding_dino(
+            image,
+            text_prompt,
+            box_threshold=config["threshold"],
+            text_threshold=0.25
+        )
+        
+        if not detections:
+            print(f"      ⏭️  Aucune détection pour {element_name}")
+            continue
+        
+        # Filtrer par taille
+        filtered = []
+        for det in detections:
+            box = det["box"]
+            box_area = (box[2] - box[0]) * (box[3] - box[1])
+            box_ratio = box_area / image_area
+            
+            if box_ratio <= config["max_size"] and box_ratio >= 0.001:  # Au moins 0.1% de l'image
+                det["box_ratio"] = box_ratio
+                det["element"] = element_name
+                filtered.append(det)
+        
+        # Trier et limiter
+        filtered.sort(key=lambda x: x["score"], reverse=True)
+        filtered = filtered[:config["max_det"]]
+        
+        if not filtered:
+            print(f"      ⏭️  Toutes détections filtrées pour {element_name}")
+            continue
+        
+        all_detections[element_name] = filtered
+        print(f"      ✅ {len(filtered)} {element_name}(s) détecté(s)")
+        
+        # Étape 2: Segmentation SAM2 pour cet élément
+        model, processor = load_sam2()
+        boxes = [det["box"] for det in filtered]
+        
+        inputs = processor(
+            images=image,
+            input_boxes=[boxes],
+            return_tensors="pt"
+        ).to("cuda", torch.float16)
+        
+        with torch.no_grad():
+            outputs = model(**inputs)
+        
+        original_sizes = inputs["original_sizes"].tolist()
+        masks = processor.post_process_masks(
+            outputs.pred_masks,
+            original_sizes,
+            binarize=False
+        )
+        
+        # Combiner les masques de toutes les instances de cet élément
+        element_mask = np.zeros((h, w), dtype=np.uint8)
+        
+        for i in range(len(boxes)):
+            scores = outputs.iou_scores[0][i].cpu().numpy()
+            best_idx = scores.argmax()
+            mask = masks[0][i][best_idx].cpu().numpy().astype(np.uint8) * 255
+            element_mask = np.maximum(element_mask, mask)
+        
+        element_mask_img = Image.fromarray(element_mask, mode="L")
+        element_masks[element_name] = element_mask_img
+        elements_found.append(element_name)
+        
+        # Sauvegarder chaque masque individuellement
+        if save_path:
+            element_save_path = save_path.replace(".png", f"_{element_name}.png")
+            element_mask_img.save(element_save_path)
+            print(f"      💾 Masque {element_name} sauvegardé")
+    
+    # Créer un masque combiné de tous les éléments
+    if element_masks:
+        combined = np.zeros((h, w), dtype=np.uint8)
+        for mask_img in element_masks.values():
+            mask_np = np.array(mask_img)
+            combined = np.maximum(combined, mask_np)
+        
+        combined_mask = Image.fromarray(combined, mode="L")
+        
+        if save_path:
+            combined_mask.save(save_path)
+            print(f"\n   💾 Masque combiné sauvegardé: {save_path}")
+        
+        coverage = np.sum(combined > 0) / combined.size * 100
+        print(f"\n   ✅ Segmentation aérienne terminée: {len(elements_found)} types d'éléments détectés")
+        print(f"      Éléments: {', '.join(elements_found)}")
+        print(f"      Couverture totale: {coverage:.1f}%")
+        
+        return {
+            "masks": element_masks,
+            "combined_mask": combined_mask,
+            "elements_found": elements_found,
+            "detections": all_detections
+        }
+    else:
+        print(f"\n   ⚠️  Aucun élément détecté dans l'image aérienne")
+        return {
+            "masks": {},
+            "combined_mask": None,
+            "elements_found": [],
+            "detections": {}
+        }
+
+
 def _segment_with_grounded_sam2(
     image: Image.Image,
     text_prompt: str,

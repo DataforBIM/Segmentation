@@ -4,24 +4,26 @@ import numpy as np
 from PIL import Image
 
 
-def make_canny(image: Image.Image, save_path: str = None) -> Image.Image:
+def make_canny(image: Image.Image, save_path: str = None, low_threshold: int = 100, high_threshold: int = 200) -> Image.Image:
     """
     Applique l'algorithme Canny pour détecter les contours dans l'image.
 
     Args:
         image: Image PIL d'entrée
         save_path: Chemin pour sauvegarder l'image des contours (optionnel)
+        low_threshold: Seuil bas pour Canny (défaut: 100, pour soft aerial: 30)
+        high_threshold: Seuil haut pour Canny (défaut: 200, pour soft aerial: 80)
 
     Returns:
         Image PIL avec les contours détectés
     """
-    print("   🔍 Génération des contours avec Canny...")
+    print(f"   🔍 Génération des contours avec Canny (soft: {low_threshold}/{high_threshold})...")
 
     # Convertir PIL → numpy
     img_np = np.array(image.convert("L"))
 
-    # Appliquer Canny
-    edges = cv2.Canny(img_np, 100, 200)
+    # Appliquer Canny avec seuils personnalisés
+    edges = cv2.Canny(img_np, low_threshold, high_threshold)
 
     # Convertir numpy → PIL
     edges_image = Image.fromarray(edges)

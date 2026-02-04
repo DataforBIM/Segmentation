@@ -19,11 +19,22 @@ SCENE_PROMPTS = {
         "realistic scale and proportions"
     ),
     "AERIAL": (
-        "vue aérienne architecturale, "
-        "aerial architectural photography, "
-        "drone view, "
-        "oblique aerial perspective, "
-        "large scale context visible"
+        "architectural aerial reconstruction, "
+        "clean geometry, "
+        "straight walls, "
+        "realistic roof tiles, "
+        "urban european residential block, "
+        "accurate proportions, "
+        "neutral lighting, "
+        "no photogrammetry artifacts, "
+        "sharp edges, "
+        "high structural clarity, "
+        "raw aerial photograph, "
+        "real drone photo, "
+        "natural colors, "
+        "authentic lighting, "
+        "realistic details preservation, "
+        "photographic quality"
     )
 }
 
@@ -61,17 +72,17 @@ NEGATIVE_PROMPTS = {
     ),
 
     "AERIAL": (
-        "cartoon, illustration, anime, painting, sketch, 3d render, cgi, "
-        "blurry, low quality, noise, artifacts, "
-        "distorted perspective, impossible angle, "
-        "warped buildings, curved straight lines, "
-        "unrealistic scale, wrong proportions, "
-        "floating structures, disconnected roads, "
-        "fake vegetation, plastic trees, "
-        "unnatural patterns, grid distortion, "
-        "added buildings, removed structures, "
-        "modified urban layout, "
-        "text, watermark, logo, people, cars"
+        "yellow tint, yellow cast, yellow buildings, orange tint, warm color cast, "
+        "artificial colors, wrong colors, color grading, color filter, "
+        "video game, game graphics, gaming render, unreal engine, unity engine, "
+        "3d render, cgi render, computer generated, digital render, synthetic, "
+        "cartoon, anime, illustration, painting, drawing, sketch, comic, "
+        "stylized, painted effect, art filter, processed look, "
+        "miniature effect, tilt-shift, toy town, model city, "
+        "plastic materials, shiny surfaces, glossy finish, "
+        "oversaturated, boosted saturation, enhanced colors, vibrant colors, "
+        "dramatic lighting, artificial lights, game lighting, "
+        "blurry, low quality, pixelated, unrealistic"
     )
 }
 

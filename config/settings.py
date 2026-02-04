@@ -12,8 +12,8 @@ REFINER_MODEL = "stabilityai/stable-diffusion-xl-refiner-1.0"
 # Segmentation settings
 SEGMENT_TARGET = "floor"  # "floor", "wall", "ceiling", "custom"
 SEGMENT_METHOD = "auto"   # "auto", "points", "box"
-SEGMENT_DILATE = 5        # Dilatation du masque (pixels)
-SEGMENT_FEATHER = 10      # Adoucissement des bords
+SEGMENT_DILATE = 0        # Aucune dilatation - masques précis
+SEGMENT_FEATHER = 0       # Aucun feathering - transitions nettes
 
 # Generation mode
 USE_INPAINTING = False    # False = ControlNet + masque (cumule les deux !)

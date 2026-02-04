@@ -14,9 +14,10 @@ def generate_with_inpainting(
     width: int,
     height: int,
     seed: int = 123456,
-    strength: float = 0.99,  # Haute pour remplacer complètement la zone masquée
-    guidance_scale: float = 12.0,
-    num_steps: int = 50
+    strength: float = 0.50,  # Très faible pour éviter les artefacts
+    guidance_scale: float = 5.0,  # Très réduit pour éviter les artefacts
+    num_steps: int = 50,
+    aerial_elements: list[str] = None  # NOUVEAU: éléments détectés pour scènes aériennes
 ) -> Image.Image:
     """
     Génère l'image avec SDXL Inpainting
@@ -34,13 +35,14 @@ def generate_with_inpainting(
         strength: Force de modification (0.99 = remplacement quasi-total)
         guidance_scale: Adhérence au prompt
         num_steps: Nombre d'étapes d'inférence
+        aerial_elements: Liste des éléments détectés pour scènes aériennes
     
     Returns:
         Image avec la zone masquée modifiée
     """
     
-    # Construire les prompts
-    prompt, negative_prompt = build_prompts(scene_type, user_prompt)
+    # Construire les prompts (avec éléments aériens si disponibles)
+    prompt, negative_prompt = build_prompts(scene_type, user_prompt, aerial_elements=aerial_elements)
     
     print(f"\n🎨 Prompt final: {prompt[:100]}...")
     print(f"🚫 Negative: {negative_prompt[:100]}...")
@@ -83,9 +85,9 @@ def generate_with_inpainting(
             prompt=prompt,
             negative_prompt=negative_prompt,
             image=base_image,
-            strength=0.2,
-            guidance_scale=7.0,
-            num_inference_steps=20,
+            strength=0.05,  # Extrêmement léger pour éviter les artefacts
+            guidance_scale=4.5,  # Très réduit
+            num_inference_steps=10,  # Très réduit
             generator=torch.Generator("cuda").manual_seed(seed)
         ).images[0]
         
@@ -109,7 +111,8 @@ def generate_with_controlnet_inpaint(
     strength: float = 0.85,
     controlnet_scale: float = 0.6,
     guidance_scale: float = 10.0,
-    num_steps: int = 50
+    num_steps: int = 50,
+    aerial_elements: list[str] = None  # NOUVEAU: éléments aériens
 ) -> Image.Image:
     """
     Génère avec ControlNet + Masque de fusion manuel
@@ -137,7 +140,8 @@ def generate_with_controlnet_inpaint(
         strength=strength,
         controlnet_scale=controlnet_scale,
         guidance_scale=guidance_scale,
-        num_steps=num_steps
+        num_steps=num_steps,
+        aerial_elements=aerial_elements  # Passer les éléments aériens
     )
     
     # Fusionner avec le masque

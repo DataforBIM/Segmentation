@@ -14,18 +14,19 @@ def generate_with_sdxl(
     width: int,
     height: int,
     seed: int = 123456,
-    strength: float = 0.45,  # Équilibré : assez pour le sol, pas trop pour le reste
-    controlnet_scale: float = 0.7,  # Élevé pour préserver la structure
-    guidance_scale: float = 12.0,  # Élevé pour suivre strictement le prompt
-    num_steps: int = 50  # Plus de steps pour meilleure qualité
+    strength: float = 0.20,  # Encore plus faible pour éviter les artefacts
+    controlnet_scale: float = 1.2,  # Augmenté pour depth plus fort
+    guidance_scale: float = 5.0,  # Très réduit pour éviter les artefacts
+    num_steps: int = 40,  # Réduit pour moins de transformation
+    aerial_elements: list[str] = None  # NOUVEAU: éléments aériens
 ) -> Image.Image:
     """
     Génère l'image avec SDXL + ControlNet + Refiner
     Paramètres optimisés pour minimiser les artefacts
     """
     
-    # Construire les prompts avec le builder
-    prompt, negative_prompt = build_prompts(scene_type, user_prompt)
+    # Construire les prompts avec le builder (avec éléments aériens si disponibles)
+    prompt, negative_prompt = build_prompts(scene_type, user_prompt, aerial_elements=aerial_elements)
     
     print(f"\n🎨 Prompt final: {prompt[:100]}...")
     print(f"🚫 Negative: {negative_prompt[:100]}...")
@@ -57,9 +58,9 @@ def generate_with_sdxl(
             prompt=prompt,
             negative_prompt=negative_prompt,
             image=base_image,
-            strength=0.15,  # Léger pour affiner les détails du marbre
-            guidance_scale=6.5,  # Équilibré
-            num_inference_steps=18,  # Équilibré
+            strength=0.15,  # Minimum safe value for VAE
+            guidance_scale=5.0,
+            num_inference_steps=15,
             generator=torch.Generator("cuda").manual_seed(seed)
         ).images[0]
         

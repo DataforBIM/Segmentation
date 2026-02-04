@@ -10,9 +10,9 @@ result = run_pipeline(
     enable_scene_detection=True,
     enable_controlnet=True,       # ✅ ControlNet (préserve structure)
     enable_segmentation=True,     # ✅ Segmentation (masque ciblé)
-    enable_sdxl=True,             # ✅ Génération
-    enable_refiner=True,          # ✅ Refiner (qualité)
-    enable_upscaler=False,         # ✅ Upscaling Real-ESRGAN
+    enable_sdxl=True,              # ✅ Génération SDXL activée
+    enable_refiner=True,           # ✅ Refiner (qualité photoréaliste)
+    enable_upscaler=False,         # ⏭️  Upscaling Real-ESRGAN
     segment_target="auto",
     segment_method="auto"
 )

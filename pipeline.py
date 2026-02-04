@@ -73,9 +73,14 @@ def run_pipeline(
         # Générer tous les pass de ControlNet
         print("   🎨 Génération de tous les pass ControlNet...")
         
-        # Pass 1: Canny (contours)
+        # Pass 1: Canny (contours) - Très soft pour scènes aériennes
         try:
-            control_images["canny"] = make_canny(current_image, save_path="output/controlnet_canny.png")
+            if scene_type == "AERIAL":
+                # Canny très soft pour préserver les détails fins en aérien
+                control_images["canny"] = make_canny(current_image, save_path="output/controlnet_canny.png", low_threshold=30, high_threshold=80)
+            else:
+                # Canny normal pour autres scènes
+                control_images["canny"] = make_canny(current_image, save_path="output/controlnet_canny.png")
         except Exception as e:
             print(f"   ⚠️  Erreur Canny: {e}")
         
@@ -85,17 +90,23 @@ def run_pipeline(
         except Exception as e:
             print(f"   ⚠️  Erreur Depth: {e}")
         
-        # Pass 3: OpenPose (poses)
-        try:
-            control_images["openpose"] = make_openpose(current_image, save_path="output/controlnet_openpose.png")
-        except Exception as e:
-            print(f"   ⚠️  Erreur OpenPose: {e}")
+        # Pass 3: OpenPose (poses) - Skip for AERIAL scenes
+        if scene_type != "AERIAL":
+            try:
+                control_images["openpose"] = make_openpose(current_image, save_path="output/controlnet_openpose.png")
+            except Exception as e:
+                print(f"   ⚠️  Erreur OpenPose: {e}")
+        else:
+            print(f"   ⏭️  OpenPose désactivé pour scènes aériennes")
         
-        # Pass 4: Normal (normales)
-        try:
-            control_images["normal"] = make_normal(current_image, save_path="output/controlnet_normal.png")
-        except Exception as e:
-            print(f"   ⚠️  Erreur Normal: {e}")
+        # Pass 4: Normal (normales) - Skip for AERIAL scenes
+        if scene_type != "AERIAL":
+            try:
+                control_images["normal"] = make_normal(current_image, save_path="output/controlnet_normal.png")
+            except Exception as e:
+                print(f"   ⚠️  Erreur Normal: {e}")
+        else:
+            print(f"   ⏭️  Normal map désactivée pour scènes aériennes")
         
         print(f"   ✅ {len(control_images)} pass ControlNet générés")
     else:
@@ -103,9 +114,11 @@ def run_pipeline(
     
     # Étape 4: Segmentation SAM2/SegFormer (NOUVELLE)
     mask = None
+    aerial_elements = None  # Pour stocker les éléments détectés en mode aérien
+    
     if enable_segmentation and USE_SEGMENTATION:
         print("\n🧠 Étape 4: Segmentation SAM2/SegFormer")
-        from steps.step2b_segment import segment_target_region, create_masked_image
+        from steps.step2b_segment import segment_target_region, create_masked_image, load_aerial_metadata
         from prompts.target_detection import detect_segment_target, get_target_description
         
         # Détection automatique de la cible si nécessaire
@@ -125,6 +138,12 @@ def run_pipeline(
             feather=SEGMENT_FEATHER,
             save_path="output/segmentation_mask.png"
         )
+        
+        # Pour les scènes aériennes, charger les métadonnées des éléments détectés
+        if scene_type == "AERIAL":
+            aerial_elements = load_aerial_metadata("output/segmentation_mask.png")
+            if aerial_elements:
+                print(f"   ✅ Éléments aériens chargés: {len(aerial_elements)} types")
         
         # Sauvegarder une preview du masque sur l'image
         create_masked_image(
@@ -159,7 +178,8 @@ def run_pipeline(
                 user_prompt=user_prompt,
                 width=width,
                 height=height,
-                seed=SEED
+                seed=SEED,
+                aerial_elements=aerial_elements  # Passer les éléments aériens
             )
             
         elif mask is not None:
@@ -187,7 +207,8 @@ def run_pipeline(
                 user_prompt=user_prompt,
                 width=width,
                 height=height,
-                seed=SEED
+                seed=SEED,
+                aerial_elements=aerial_elements  # Passer les éléments aériens
             )
             
         else:
@@ -215,7 +236,8 @@ def run_pipeline(
                 user_prompt=user_prompt,
                 width=width,
                 height=height,
-                seed=SEED
+                seed=SEED,
+                aerial_elements=aerial_elements  # Passer les éléments aériens
             )
         
         # Mettre à jour la dernière étape

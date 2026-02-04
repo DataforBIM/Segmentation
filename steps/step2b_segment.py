@@ -39,56 +39,75 @@ def segment_target_region(
         segment_interior_element,
         segment_exterior_element,
         segment_portrait_element,
+        segment_aerial_elements,
         dilate_mask,
         feather_mask
     )
     
     print(f"   🎯 Segmentation: target={target}, method={method}, scene={scene_type}")
     
-    # === ROUTING SELON LA SCÈNE ===
-    
-    # Définir les targets par catégorie
-    animal_parts = ["ears", "eyes", "fur", "tail", "paws", "nose", "body"]
-    interior_elements = ["floor", "wall", "ceiling", "furniture", "window", "door"]
-    exterior_elements = ["sky", "ground", "vegetation", "building", "road"]
-    portrait_elements = ["face", "hair", "lips", "skin", "clothing"]
-    
-    # Segmentation selon la méthode
-    if method == "auto":
-        # Router selon la scène ET le target
-        if scene_type == "ANIMAL" or target in animal_parts:
-            mask = segment_animal_part(image, target)
-            
-        elif scene_type == "INTERIOR" or target in interior_elements:
-            mask = segment_interior_element(image, target)
-            
-        elif scene_type == "EXTERIOR" or target in exterior_elements:
-            mask = segment_exterior_element(image, target)
-            
-        elif scene_type == "PORTRAIT" or target in portrait_elements:
-            mask = segment_portrait_element(image, target)
-            
-        else:
-            # Fallback: essayer avec le target générique
-            if target in animal_parts:
-                mask = segment_animal_part(image, target)
-            elif target in interior_elements:
-                mask = segment_interior_element(image, target)
-            else:
-                mask = segment_floor_auto(image)  # Fallback ultime
-            
-    elif method == "points":
-        if points is None:
-            points = _get_default_points(image, target, scene_type)
-        mask = segment_with_points_sam2(image, points)
+    # === SEGMENTATION SPÉCIALE POUR SCÈNES AÉRIENNES ===
+    if scene_type == "AERIAL":
+        print(f"   🚁 Mode aérien: Segmentation multi-éléments avec SAM2")
+        aerial_result = segment_aerial_elements(image, save_path=save_path)
         
-    elif method == "box":
-        if box is None:
-            box = _get_default_box(image, target, scene_type)
-        mask = segment_with_box_sam2(image, box)
+        # Retourner le masque combiné de tous les éléments
+        # SDXL va améliorer tous les éléments détectés séparément
+        if aerial_result["combined_mask"] is not None:
+            mask = aerial_result["combined_mask"]
+            
+            # Sauvegarder les métadonnées pour utilisation ultérieure
+            # (pour que SDXL puisse traiter chaque élément séparément si besoin)
+            _save_aerial_metadata(aerial_result, save_path)
+        else:
+            # Fallback si aucun élément détecté
+            print(f"   ⚠️  Aucun élément aérien détecté, utilisation de masque complet")
+            mask = Image.new("L", image.size, 255)  # Masque blanc complet
     
+    # === ROUTING SELON LA SCÈNE (non-aérienne) ===
     else:
-        raise ValueError(f"Méthode inconnue: {method}")
+        # Définir les targets par catégorie
+        animal_parts = ["ears", "eyes", "fur", "tail", "paws", "nose", "body"]
+        interior_elements = ["floor", "wall", "ceiling", "furniture", "window", "door"]
+        exterior_elements = ["sky", "ground", "vegetation", "building", "road"]
+        portrait_elements = ["face", "hair", "lips", "skin", "clothing"]
+        
+        # Segmentation selon la méthode
+        if method == "auto":
+            # Router selon la scène ET le target
+            if scene_type == "ANIMAL" or target in animal_parts:
+                mask = segment_animal_part(image, target)
+                
+            elif scene_type == "INTERIOR" or target in interior_elements:
+                mask = segment_interior_element(image, target)
+                
+            elif scene_type == "EXTERIOR" or target in exterior_elements:
+                mask = segment_exterior_element(image, target)
+                
+            elif scene_type == "PORTRAIT" or target in portrait_elements:
+                mask = segment_portrait_element(image, target)
+                
+            else:
+                # Fallback: essayer avec le target générique
+                if target in animal_parts:
+                    mask = segment_animal_part(image, target)
+                elif target in interior_elements:
+                    mask = segment_interior_element(image, target)
+                else:
+                    mask = segment_floor_auto(image)  # Fallback ultime
+                
+        elif method == "points":
+            if points is None:
+                points = _get_default_points(image, target, scene_type)
+            mask = segment_with_points_sam2(image, points)
+            
+        elif method == "box":
+            if box is None:
+                box = _get_default_box(image, target, scene_type)
+            mask = segment_with_box_sam2(image, box)
+        
+        else:
+            raise ValueError(f"Méthode inconnue: {method}")
     
     # Post-traitement du masque
     if dilate > 0:
@@ -272,3 +291,60 @@ def invert_mask(mask: Image.Image) -> Image.Image:
     inverted = 255 - mask_np
     
     return Image.fromarray(inverted, mode="L")
+
+
+def _save_aerial_metadata(aerial_result: dict, save_path: str = None):
+    """
+    Sauvegarde les métadonnées de segmentation aérienne pour utilisation ultérieure
+    """
+    if not save_path:
+        return
+    
+    import json
+    import os
+    
+    # Créer un fichier JSON avec les métadonnées
+    metadata_path = save_path.replace(".png", "_metadata.json")
+    
+    metadata = {
+        "elements_found": aerial_result["elements_found"],
+        "num_elements": len(aerial_result["elements_found"]),
+        "detections": {}
+    }
+    
+    # Ajouter le nombre de détections par élément
+    for element_name, detections in aerial_result.get("detections", {}).items():
+        metadata["detections"][element_name] = {
+            "count": len(detections),
+            "avg_score": sum(d["score"] for d in detections) / len(detections) if detections else 0
+        }
+    
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        json.dump(metadata, f, indent=2, ensure_ascii=False)
+    
+    print(f"   💾 Métadonnées sauvegardées: {metadata_path}")
+
+
+def load_aerial_metadata(save_path: str) -> list[str]:
+    """
+    Charge les métadonnées de segmentation aérienne
+    
+    Returns:
+        Liste des éléments détectés ou None si pas de métadonnées
+    """
+    import json
+    import os
+    
+    metadata_path = save_path.replace(".png", "_metadata.json")
+    
+    if not os.path.exists(metadata_path):
+        return None
+    
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+        
+        return metadata.get("elements_found", [])
+    except Exception as e:
+        print(f"   ⚠️  Erreur chargement métadonnées: {e}")
+        return None

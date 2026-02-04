@@ -1,0 +1,47 @@
+{
+  "elements_found": [
+    "walls",
+    "roof",
+    "door",
+    "road",
+    "road_markings",
+    "car",
+    "vegetation",
+    "parking"
+  ],
+  "num_elements": 8,
+  "detections": {
+    "walls": {
+      "count": 2,
+      "avg_score": 0.3052256554365158
+    },
+    "roof": {
+      "count": 11,
+      "avg_score": 0.34317463636398315
+    },
+    "door": {
+      "count": 2,
+      "avg_score": 0.3284640461206436
+    },
+    "road": {
+      "count": 3,
+      "avg_score": 0.21527170638243356
+    },
+    "road_markings": {
+      "count": 1,
+      "avg_score": 0.44284558296203613
+    },
+    "car": {
+      "count": 5,
+      "avg_score": 0.4256563425064087
+    },
+    "vegetation": {
+      "count": 5,
+      "avg_score": 0.3798088848590851
+    },
+    "parking": {
+      "count": 3,
+      "avg_score": 0.24072794616222382
+    }
+  }
+}
