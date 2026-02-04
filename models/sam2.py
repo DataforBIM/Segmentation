@@ -269,6 +269,136 @@ def feather_mask(mask: Image.Image, radius: int = 10) -> Image.Image:
     return Image.fromarray(blurred, mode="L")
 
 
+def clean_mask_morphology(mask: Image.Image, element_name: str = "generic",
+                          min_size: int = 2000, area_threshold: int = 2000,
+                          closing_radius: int = 5, opening_radius: int = 3) -> Image.Image:
+    """
+    🧹 ÉTAPE 2: Nettoyage OBLIGATOIRE des masques SAM2
+    
+    SAM2 produit souvent:
+    - Du gris déguisé → binarisation stricte
+    - Du bruit → suppression agressive
+    - Des bords trop organiques → lissage morphologique
+    
+    Args:
+        mask: Masque PIL en niveau de gris (sortie SAM2)
+        element_name: Type d'élément (pour ajuster les paramètres)
+        min_size: Taille minimale des objets à conserver (défaut: 2000px pour bâtiments/routes)
+        area_threshold: Seuil de surface pour combler les trous (défaut: 2000px)
+        closing_radius: Rayon du disque pour binary_closing (défaut: 5)
+        opening_radius: Rayon du disque pour binary_opening (défaut: 3)
+    
+    Returns:
+        Masque PIL nettoyé et binarisé
+    """
+    from skimage.morphology import remove_small_objects, remove_small_holes, disk, binary_closing, binary_opening
+    
+    print(f"   🧹 Nettoyage OBLIGATOIRE ({element_name}): min_size={min_size}, holes={area_threshold}")
+    
+    # Convertir en numpy
+    mask_np = np.array(mask).astype(np.float32) / 255.0
+    
+    # A. BINARISATION STRICTE (> 0.5)
+    # SAM2 sort souvent du gris déguisé
+    binary_mask = (mask_np > 0.5).astype(bool)
+    print(f"      ✓ Binarisation stricte (seuil=0.5)")
+    
+    # B. SUPPRESSION DU BRUIT (CRUCIAL)
+    # Pour bâtiments/routes: objets < 2000px sont du bruit
+    initial_pixels = np.sum(binary_mask)
+    binary_mask = remove_small_objects(binary_mask, min_size=min_size)
+    after_remove = np.sum(binary_mask)
+    print(f"      ✓ Bruit supprimé: {initial_pixels - after_remove} pixels")
+    
+    # Combler les petits trous
+    binary_mask = remove_small_holes(binary_mask, area_threshold=area_threshold)
+    after_fill = np.sum(binary_mask)
+    print(f"      ✓ Trous comblés: +{after_fill - after_remove} pixels")
+    
+    # C. LISSAGE DES BORDS (très important)
+    # SAM2 produit des bords trop organiques → les régulariser
+    
+    # 1. Binary closing (dilate puis erode) - comble les petites coupures
+    binary_mask = binary_closing(binary_mask, disk(closing_radius))
+    print(f"      ✓ Closing (rayon={closing_radius}): bords fermés")
+    
+    # 2. Binary opening (erode puis dilate) - lisse les protubérances
+    binary_mask = binary_opening(binary_mask, disk(opening_radius))
+    print(f"      ✓ Opening (rayon={opening_radius}): bords lissés")
+    
+    # Reconvertir en 0-255
+    cleaned_mask = (binary_mask.astype(np.uint8) * 255)
+    
+    final_coverage = np.sum(binary_mask) / binary_mask.size * 100
+    print(f"      ✅ Nettoyage terminé: {final_coverage:.1f}% couverture finale")
+    
+    return Image.fromarray(cleaned_mask, mode="L")
+
+
+def simplify_mask_contours(mask: Image.Image, element_name: str = "generic", epsilon: float = 5.0) -> Image.Image:
+    """
+    📐 ÉTAPE 3: SIMPLIFICATION GÉOMÉTRIQUE (clé architecture)
+    
+    Objectif: Obtenir des polygones simples avec des angles propres
+    
+    Technique:
+    1. Extraire les contours
+    2. Approximer en polygones avec Douglas-Peucker (RDP)
+    3. cv2.approxPolyDP avec epsilon adapté
+    
+    Args:
+        mask: Masque PIL en niveau de gris
+        element_name: Type d'élément (pour adapter epsilon)
+        epsilon: Tolérance de simplification en pixels
+                 - Bâtiments (walls, roof): 5-10
+                 - Routes (road, parking): 10-20
+    
+    Returns:
+        Masque PIL avec polygones simplifiés et angles propres
+    """
+    import cv2
+    
+    print(f"   📐 Simplification géométrique ({element_name}): epsilon={epsilon}px")
+    
+    # Convertir en numpy et binariser
+    mask_np = np.array(mask)
+    binary_mask = (mask_np > 127).astype(np.uint8)
+    
+    # 1. Extraire les contours
+    contours, hierarchy = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    print(f"      → {len(contours)} contours détectés")
+    
+    # 2. Approximer chaque contour en polygone (RDP)
+    simplified_contours = []
+    total_points_before = 0
+    total_points_after = 0
+    
+    for contour in contours:
+        points_before = len(contour)
+        total_points_before += points_before
+        
+        # Simplifier avec Douglas-Peucker (approxPolyDP)
+        # epsilon fixe pour angles propres
+        simplified = cv2.approxPolyDP(contour, epsilon=epsilon, closed=True)
+        
+        points_after = len(simplified)
+        total_points_after += points_after
+        
+        simplified_contours.append(simplified)
+    
+    # 3. Recréer le masque avec les polygones simplifiés
+    simplified_mask = np.zeros_like(binary_mask)
+    cv2.drawContours(simplified_mask, simplified_contours, -1, 1, thickness=cv2.FILLED)
+    
+    # Reconvertir en 0-255
+    simplified_mask = (simplified_mask * 255).astype(np.uint8)
+    
+    reduction = (1 - total_points_after / max(total_points_before, 1)) * 100
+    print(f"      ✅ Polygones simplifiés: {total_points_before}→{total_points_after} points (-{reduction:.0f}%)")
+    print(f"      ✅ {len(simplified_contours)} polygones avec angles propres")
+    return Image.fromarray(simplified_mask, mode="L")
+
+
 # ============================================================
 # GROUNDED SAM2 - Détection automatique + Segmentation
 # ============================================================
@@ -707,6 +837,7 @@ def segment_aerial_elements(
         "walls": "wall. exterior wall. facade. building wall. side wall.",
         "ornementation": "ornementation. decoration. architectural detail. ornament. molding. trim.",
         "roof": "roof. rooftop. building roof.",
+        "window": "window. building window. facade window. glass window. window opening.",
         "door": "door. entrance. building entrance.",
         "road": "road. street. pavement. asphalt. roadway. highway. avenue. boulevard. driveway.",
         "road_markings": "road marking. road line. street marking. lane marking. crosswalk. zebra crossing. painted line.",
@@ -722,6 +853,7 @@ def segment_aerial_elements(
         "walls": {"max_size": 0.70, "max_det": 25, "threshold": 0.28},
         "ornementation": {"max_size": 0.15, "max_det": 40, "threshold": 0.25},
         "roof": {"max_size": 0.60, "max_det": 20, "threshold": 0.30},
+        "window": {"max_size": 0.08, "max_det": 50, "threshold": 0.30},  # Seuil modéré pour détecter plus de fenêtres
         "door": {"max_size": 0.10, "max_det": 30, "threshold": 0.25},
         "road": {"max_size": 0.85, "max_det": 15, "threshold": 0.18},  # Seuil réduit + max_size augmenté
         "road_markings": {"max_size": 0.05, "max_det": 50, "threshold": 0.20},
@@ -809,6 +941,71 @@ def segment_aerial_elements(
             element_mask = np.maximum(element_mask, mask)
         
         element_mask_img = Image.fromarray(element_mask, mode="L")
+        
+        # 🥇 ÉTAPE 2: Nettoyage OBLIGATOIRE des masques SAM2
+        # Paramètres adaptés selon le type d'élément
+        if element_name in ["walls", "roof", "road", "parking"]:
+            # Éléments larges: nettoyage agressif
+            element_mask_img = clean_mask_morphology(
+                element_mask_img,
+                element_name=element_name,
+                min_size=2000,        # Objets < 2000px = bruit
+                area_threshold=2000,  # Trous < 2000px = combler
+                closing_radius=5,     # Lissage fort
+                opening_radius=3
+            )
+        elif element_name in ["car", "vegetation"]:
+            # Éléments moyens: nettoyage modéré
+            element_mask_img = clean_mask_morphology(
+                element_mask_img,
+                element_name=element_name,
+                min_size=800,
+                area_threshold=800,
+                closing_radius=4,
+                opening_radius=2
+            )
+        elif element_name == "window":
+            # Fenêtres: nettoyage très strict pour éviter faux positifs
+            element_mask_img = clean_mask_morphology(
+                element_mask_img,
+                element_name=element_name,
+                min_size=150,          # Fenêtres > 150px
+                area_threshold=100,    # Petits trous
+                closing_radius=2,      # Lissage doux
+                opening_radius=2
+            )
+        else:
+            # Petits éléments (door, ornementation, road_markings): nettoyage doux
+            element_mask_img = clean_mask_morphology(
+                element_mask_img,
+                element_name=element_name,
+                min_size=300,
+                area_threshold=300,
+                closing_radius=3,
+                opening_radius=2
+            )
+        
+        # 📐 ÉTAPE 3: Simplification géométrique (clé architecture)
+        # Adapter epsilon selon le type d'élément pour angles propres
+        if element_name in ["walls", "roof", "door", "ornementation", "window"]:
+            # Bâtiments: epsilon 5-10 pour angles architecturaux précis
+            epsilon_value = 7.0
+        elif element_name in ["road", "parking", "sidewalk"]:
+            # Routes: epsilon 10-20 pour simplification forte
+            epsilon_value = 15.0
+        elif element_name in ["car"]:
+            # Véhicules: epsilon modéré
+            epsilon_value = 5.0
+        else:
+            # Autres (vegetation, road_markings): epsilon doux
+            epsilon_value = 4.0
+        
+        element_mask_img = simplify_mask_contours(
+            element_mask_img,
+            element_name=element_name,
+            epsilon=epsilon_value
+        )
+        
         element_masks[element_name] = element_mask_img
         elements_found.append(element_name)
         

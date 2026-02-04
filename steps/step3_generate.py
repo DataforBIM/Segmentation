@@ -68,3 +68,117 @@ def generate_with_sdxl(
         return refined_image
     
     return base_image
+
+
+def generate_aerial_multipass(
+    image: Image.Image,
+    control_images: dict,
+    pipe,
+    refiner,
+    user_prompt: str,
+    width: int,
+    height: int,
+    seed: int,
+    aerial_elements: list
+) -> Image.Image:
+    """
+    🚁 Génération SDXL en 3 passes pour scènes aériennes
+    
+    Passe 1 - STRUCTURE: walls + roof (denoise=0.50, depth=ON)
+    Passe 2 - OUVERTURES: windows + doors (denoise=0.20, depth=OFF)
+    Passe 3 - DÉTAILS: ornementation + road + sidewalk (denoise=0.28)
+    
+    Args:
+        image: Image d'entrée
+        control_images: Dict avec depth, canny, etc.
+        pipe: Pipeline SDXL
+        refiner: Refiner SDXL
+        user_prompt: Prompt utilisateur
+        width, height: Dimensions
+        seed: Seed aléatoire
+        aerial_elements: Liste des éléments détectés ["walls", "roof", "window", ...]
+    
+    Returns:
+        Image finale après 3 passes
+    """
+    print("\n🚁 === GÉNÉRATION AÉRIENNE MULTI-PASS (3 passes) ===")
+    
+    current = image.copy()
+    
+    # === PASSE 1: STRUCTURE (walls + roof) ===
+    print("\n📐 PASSE 1/3: STRUCTURE (walls + roof)")
+    print("   Paramètres: denoise=0.50, depth=ON, controlnet=1.2")
+    
+    structure_elements = ["walls", "roof"]
+    # Pour vue aérienne: toujours exécuter même si non détecté
+    
+    current = generate_with_sdxl(
+        image=current,
+        control_image=control_images.get("depth"),
+        pipe=pipe,
+        refiner=None,  # Pas de refiner entre les passes
+        scene_type="AERIAL",
+        user_prompt=user_prompt,
+        width=width,
+        height=height,
+        seed=seed,
+        strength=0.50,  # Denoise élevé pour structure
+        controlnet_scale=1.2,
+        guidance_scale=5.0,
+        num_steps=40,
+        aerial_elements=structure_elements  # Passer tous les éléments par défaut
+    )
+    print(f"   ✅ Structure générée (mask par défaut)")
+    
+    # === PASSE 2: OUVERTURES (windows + doors) ===
+    print("\n🚪 PASSE 2/3: OUVERTURES (windows + doors)")
+    print("   Paramètres: denoise=0.20, depth=OFF, controlnet=1.2")
+    
+    opening_elements = ["window", "door"]
+    # Pour vue aérienne: toujours exécuter même si non détecté
+    
+    current = generate_with_sdxl(
+        image=current,
+        control_image=None,  # Depth OFF pour ouvertures
+        pipe=pipe,
+        refiner=None,
+        scene_type="AERIAL",
+        user_prompt=user_prompt,
+        width=width,
+        height=height,
+        seed=seed,
+        strength=0.20,  # Denoise faible pour préserver
+        controlnet_scale=1.2,
+        guidance_scale=5.0,
+        num_steps=40,
+        aerial_elements=opening_elements  # Passer tous les éléments par défaut
+    )
+    print(f"   ✅ Ouvertures générées (mask par défaut)")
+    
+    # === PASSE 3: DÉTAILS/CONTEXTE (ornementation + road + sidewalk) ===
+    print("\n✨ PASSE 3/3: DÉTAILS/CONTEXTE (ornementation + road + sidewalk)")
+    print("   Paramètres: denoise=0.28, depth=ON, controlnet=1.2")
+    
+    detail_elements = ["ornementation", "road", "sidewalk", "road_markings", "car", "vegetation", "parking"]
+    # Pour vue aérienne: toujours exécuter même si non détecté
+    
+    current = generate_with_sdxl(
+        image=current,
+        control_image=control_images.get("depth"),  # Depth ON pour contexte
+        pipe=pipe,
+        refiner=refiner,  # Refiner sur la dernière passe uniquement
+        scene_type="AERIAL",
+        user_prompt=user_prompt,
+        width=width,
+        height=height,
+        seed=seed,
+        strength=0.28,  # Denoise modéré
+        controlnet_scale=1.2,
+        guidance_scale=5.0,
+        num_steps=40,
+        aerial_elements=detail_elements  # Passer tous les éléments par défaut
+    )
+    print(f"   ✅ Détails générés (mask par défaut)")
+    
+    print("\n✅ === 3 PASSES TERMINÉES ===")
+    return current

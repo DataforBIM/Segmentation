@@ -215,7 +215,7 @@ def run_pipeline(
             # Mode CONTROLNET classique (sans masque)
             print("   🎯 Mode: CONTROLNET classique")
             from models.sdxl import load_sdxl
-            from steps.step3_generate import generate_with_sdxl
+            from steps.step3_generate import generate_with_sdxl, generate_aerial_multipass
             
             pipe, refiner = load_sdxl(
                 SDXL_MODEL, 
@@ -227,18 +227,39 @@ def run_pipeline(
             control_img = control_images.get("depth") if control_images else None
             print(f"   🎛️  ControlNet utilisé: {'Depth' if control_img else 'None'}")
             
-            current_image = generate_with_sdxl(
-                image=current_image,
-                control_image=control_img,
-                pipe=pipe,
-                refiner=refiner if enable_refiner else None,
-                scene_type=scene_type,
-                user_prompt=user_prompt,
-                width=width,
-                height=height,
-                seed=SEED,
-                aerial_elements=aerial_elements  # Passer les éléments aériens
-            )
+            # === SCÈNES AÉRIENNES: 3 PASSES ===
+            if scene_type == "AERIAL" and aerial_elements:
+                print("   🚁 Scène aérienne détectée → Génération multi-pass (3 passes)")
+                print(f"   📋 Éléments détectés: {', '.join(aerial_elements)}")
+                current_image = generate_aerial_multipass(
+                    image=current_image,
+                    control_images=control_images,
+                    pipe=pipe,
+                    refiner=refiner if enable_refiner else None,
+                    user_prompt=user_prompt,
+                    width=width,
+                    height=height,
+                    seed=SEED,
+                    aerial_elements=aerial_elements
+                )
+            else:
+                # === AUTRES SCÈNES: 1 PASSE CLASSIQUE ===
+                # Strength ajusté pour scènes aériennes
+                strength_value = 0.65 if scene_type == "AERIAL" else 0.20
+                
+                current_image = generate_with_sdxl(
+                    image=current_image,
+                    control_image=control_img,
+                    pipe=pipe,
+                    refiner=refiner if enable_refiner else None,
+                    scene_type=scene_type,
+                    user_prompt=user_prompt,
+                    width=width,
+                    height=height,
+                    seed=SEED,
+                    strength=strength_value,  # Denoise +0.45 pour AERIAL (0.65 total)
+                    aerial_elements=aerial_elements  # Passer les éléments aériens
+                )
         
         # Mettre à jour la dernière étape
         if enable_refiner:

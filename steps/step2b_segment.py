@@ -41,7 +41,9 @@ def segment_target_region(
         segment_portrait_element,
         segment_aerial_elements,
         dilate_mask,
-        feather_mask
+        feather_mask,
+        clean_mask_morphology,
+        simplify_mask_contours
     )
     
     print(f"   🎯 Segmentation: target={target}, method={method}, scene={scene_type}")
@@ -53,12 +55,12 @@ def segment_target_region(
         
         # Retourner le masque combiné de tous les éléments
         # SDXL va améliorer tous les éléments détectés séparément
+        
+        # Sauvegarder les métadonnées TOUJOURS (même si aucun masque)
+        _save_aerial_metadata(aerial_result, save_path)
+        
         if aerial_result["combined_mask"] is not None:
             mask = aerial_result["combined_mask"]
-            
-            # Sauvegarder les métadonnées pour utilisation ultérieure
-            # (pour que SDXL puisse traiter chaque élément séparément si besoin)
-            _save_aerial_metadata(aerial_result, save_path)
         else:
             # Fallback si aucun élément détecté
             print(f"   ⚠️  Aucun élément aérien détecté, utilisation de masque complet")

@@ -2,6 +2,7 @@
   "elements_found": [
     "walls",
     "roof",
+    "window",
     "door",
     "road",
     "road_markings",
@@ -9,7 +10,7 @@
     "vegetation",
     "parking"
   ],
-  "num_elements": 8,
+  "num_elements": 9,
   "detections": {
     "walls": {
       "count": 2,
@@ -18,6 +19,10 @@
     "roof": {
       "count": 11,
       "avg_score": 0.34317463636398315
+    },
+    "window": {
+      "count": 38,
+      "avg_score": 0.3710054206220727
     },
     "door": {
       "count": 2,

@@ -1,223 +1,215 @@
 # Prompts spécifiques pour chaque élément d'une scène aérienne
 
+# ============================================================
+# AERIAL SCENE PROMPTS – ARCHITECTURAL SDXL PIPELINE
+# Authoritative prompts for SDXL + ControlNet + SAM2
+# ============================================================
+
+# ------------------------------------------------------------------
+# ELEMENT-LEVEL PROMPTS (USED WITH SEGMENTATION MASKS)
+# ------------------------------------------------------------------
+
 AERIAL_ELEMENT_PROMPTS = {
-    # "building": DÉSACTIVÉ - remplacé par walls + ornementation
-    
+
+    # =========================
+    # STRUCTURE (MAX AUTHORITY)
+    # =========================
+
     "walls": {
         "positive": (
-            "detailed exterior wall, "
-            "sharp wall texture, "
-            "realistic wall materials, "
-            "clear wall surface, "
-            "photorealistic facade, "
-            "high-resolution wall details, "
+            "preserve existing exterior walls, "
+            "maintain original wall geometry, "
+            "straightened and corrected wall planes, "
+            "architectural wall surfaces clearly defined, "
             "accurate wall proportions, "
-            "natural wall weathering"
+            "physically plausible wall materials, "
+            "natural facade weathering, "
+            "no geometry simplification"
         ),
         "negative": (
-            "blurry wall, "
-            "distorted wall, "
-            "warped facade, "
-            "low resolution wall, "
+            "removed walls, "
             "merged walls, "
-            "unclear wall boundaries"
+            "warped facade, "
+            "bent geometry, "
+            "melted surfaces, "
+            "flattened architecture, "
+            "blurred wall structure"
         )
     },
-    
-    "ornementation": {
-        "positive": (
-            "detailed architectural ornamentation, "
-            "sharp decorative elements, "
-            "realistic ornamental details, "
-            "clear molding and trim, "
-            "photorealistic decoration, "
-            "high-resolution ornaments, "
-            "accurate architectural details, "
-            "natural weathering on ornaments"
-        ),
-        "negative": (
-            "blurry ornamentation, "
-            "distorted decoration, "
-            "pixelated details, "
-            "low resolution ornaments, "
-            "merged decorative elements, "
-            "unclear ornamental boundaries"
-        )
-    },
-    
+
     "roof": {
         "positive": (
-            "detailed roof texture, "
-            "realistic roofing materials, "
-            "clear roof tiles or shingles, "
-            "sharp roof edges, "
-            "natural roof weathering, "
-            "photorealistic roof surface, "
-            "accurate roof shadows"
+            "preserve original roof shape and volume, "
+            "accurate roof geometry, "
+            "clean roof planes, "
+            "realistic roof materials and tiles, "
+            "correct roof edges and ridgelines, "
+            "natural roof weathering"
         ),
         "negative": (
-            "blurry roof, "
-            "pixelated roof texture, "
-            "flat roof without detail, "
-            "unrealistic roof material, "
-            "distorted roof shape"
+            "warped roof geometry, "
+            "collapsed roof, "
+            "flattened roof volume, "
+            "melted tiles, "
+            "unrealistic roof materials"
         )
     },
-    
+
+    # =========================
+    # OPENINGS (PROTECTED)
+    # =========================
+
     "window": {
         "positive": (
-            "sharp window details, "
-            "realistic glass reflections, "
-            "clear window frames, "
-            "photorealistic window, "
-            "detailed window panes, "
-            "accurate window proportions, "
-            "natural glass reflections"
+            "preserve all existing windows, "
+            "do not remove or relocate windows, "
+            "maintain original window positions, "
+            "architectural openings clearly defined, "
+            "windows as structural facade elements, "
+            "consistent facade fenestration, "
+            "sharp window frames, "
+            "realistic glass behavior"
         ),
         "negative": (
-            "blurry window, "
-            "missing window frames, "
-            "unrealistic reflections, "
-            "distorted window shape, "
-            "low resolution glass"
+            "removed windows, "
+            "missing windows, "
+            "filled openings, "
+            "smoothed over windows, "
+            "sealed facade, "
+            "fake or hallucinated windows, "
+            "distorted window geometry"
         )
     },
-    
+
     "door": {
         "positive": (
-            "detailed door texture, "
-            "clear door frame, "
-            "realistic door material, "
-            "sharp door edges, "
-            "photorealistic entrance, "
-            "accurate door proportions"
+            "preserve existing doors, "
+            "maintain original entrance positions, "
+            "clear door openings, "
+            "accurate door proportions, "
+            "architectural entrance consistency"
         ),
         "negative": (
-            "blurry door, "
-            "distorted door shape, "
-            "unrealistic door material, "
-            "low resolution door"
+            "removed doors, "
+            "missing entrances, "
+            "sealed door openings, "
+            "distorted door geometry"
         )
     },
-    
+
+    # =========================
+    # SECONDARY DETAILS
+    # =========================
+
+    "ornementation": {
+        "positive": (
+            "preserve existing architectural ornamentation, "
+            "maintain original decorative placement, "
+            "clear and readable molding and trims, "
+            "architectural details without exaggeration, "
+            "natural material aging"
+        ),
+        "negative": (
+            "removed ornamentation, "
+            "over-simplified decoration, "
+            "exaggerated details, "
+            "decorative noise, "
+            "merged decorative elements"
+        )
+    },
+
+    # =========================
+    # INFRASTRUCTURE (LOW PRIORITY)
+    # =========================
+
     "road": {
         "positive": (
-            "smooth asphalt surface, "
-            "realistic road texture, "
-            "clear road markings, "
-            "photorealistic pavement, "
-            "natural road weathering, "
-            "accurate road lines, "
-            "high-resolution road surface"
+            "clean road surface, "
+            "realistic asphalt texture, "
+            "consistent road layout, "
+            "natural wear without distraction"
         ),
         "negative": (
-            "blurry road, "
-            "distorted road lines, "
-            "unrealistic pavement, "
-            "broken road surface, "
-            "disconnected road segments"
+            "broken road continuity, "
+            "floating road segments, "
+            "overly sharp textures, "
+            "dominant road features"
         )
     },
-    
+
     "road_markings": {
         "positive": (
-            "crisp road lines, "
-            "sharp road markings, "
-            "clear lane markings, "
-            "precise white lines, "
-            "detailed crosswalk, "
-            "photorealistic road paint, "
-            "accurate road signs, "
-            "high-resolution markings, "
-            "well-defined zebra crossing, "
-            "clear road direction arrows"
+            "preserve existing road markings, "
+            "clear but subtle lane markings, "
+            "consistent crosswalk patterns"
         ),
         "negative": (
-            "blurry markings, "
-            "faded road lines, "
-            "unclear markings, "
-            "distorted lines, "
-            "missing road paint, "
-            "low resolution markings, "
-            "broken lines, "
-            "irregular markings"
+            "exaggerated markings, "
+            "overly bright paint, "
+            "dominant road graphics"
         )
     },
-    
-    "car": {
+
+    "sidewalk": {
         "positive": (
-            "detailed car model, "
-            "realistic vehicle, "
-            "accurate car proportions, "
-            "photorealistic automobile, "
-            "sharp car details, "
-            "natural car colors, "
-            "proper car shadows"
+            "clear sidewalk layout, "
+            "realistic pavement materials, "
+            "consistent sidewalk edges"
         ),
         "negative": (
-            "blurry car, "
-            "distorted vehicle, "
-            "wrong car scale, "
-            "unrealistic car proportions, "
-            "toy car appearance, "
-            "low resolution vehicle"
+            "distorted sidewalks, "
+            "floating pavement, "
+            "dominant sidewalk texture"
         )
     },
-    
-    "vegetation": {
-        "positive": (
-            "natural tree textures, "
-            "realistic vegetation, "
-            "detailed foliage, "
-            "photorealistic plants, "
-            "natural greenery, "
-            "accurate tree shapes, "
-            "organic vegetation patterns"
-        ),
-        "negative": (
-            "fake trees, "
-            "plastic plants, "
-            "unrealistic vegetation, "
-            "blurry foliage, "
-            "artificial greenery, "
-            "low resolution trees"
-        )
-    },
-    
+
     "parking": {
         "positive": (
             "organized parking layout, "
-            "clear parking lines, "
-            "realistic parking lot surface, "
-            "photorealistic parking space, "
-            "accurate parking markings, "
-            "natural pavement texture"
+            "subtle parking markings, "
+            "non-dominant parking surface"
         ),
         "negative": (
-            "distorted parking lines, "
-            "unrealistic parking layout, "
-            "blurry parking surface, "
-            "irregular parking spaces"
+            "chaotic parking layout, "
+            "overly strong markings, "
+            "dominant parking features"
         )
     },
-    
-    "sidewalk": {
+
+    # =========================
+    # ELEMENTS TO NEUTRALIZE
+    # =========================
+
+    "car": {
         "positive": (
-            "clear sidewalk texture, "
-            "realistic pavement, "
-            "detailed footpath surface, "
-            "photorealistic sidewalk, "
-            "natural sidewalk materials, "
-            "accurate sidewalk edges"
+            "static parked vehicles, "
+            "minimal visual importance, "
+            "non-dominant presence"
         ),
         "negative": (
-            "blurry sidewalk, "
-            "distorted footpath, "
-            "unrealistic pavement, "
-            "low resolution sidewalk"
+            "focus on cars, "
+            "detailed vehicles, "
+            "shiny cars, "
+            "dominant automobiles, "
+            "moving vehicles"
+        )
+    },
+
+    "vegetation": {
+        "positive": (
+            "background vegetation only, "
+            "soft natural greenery, "
+            "non-dominant trees and plants"
+        ),
+        "negative": (
+            "overgrown vegetation, "
+            "dominant trees, "
+            "blocking architecture, "
+            "oversaturated greenery"
         )
     }
 }
+
 
 
 def build_aerial_prompt(user_prompt: str, elements_found: list[str]) -> tuple[str, str]:
@@ -260,6 +252,7 @@ def get_element_description(element: str) -> str:
         "walls": "murs",
         "ornementation": "ornementations",
         "roof": "toits",
+        "window": "fenêtres",
         "door": "portes",
         "road": "routes",
         "road_markings": "marquages routiers",

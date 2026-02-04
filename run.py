@@ -6,12 +6,12 @@ INPUT_IMAGE_URL = "https://res.cloudinary.com/ddmzn1508/image/upload/v1769946149
 
 result = run_pipeline(
     INPUT_IMAGE_URL, 
-    "Améliorer la vue aérienne prise de google earth",
+    "Améliorer la vue aérienne, le batiment, et l'environnement",
     enable_scene_detection=True,
     enable_controlnet=True,       # ✅ ControlNet (préserve structure)
     enable_segmentation=True,     # ✅ Segmentation (masque ciblé)
     enable_sdxl=True,              # ✅ Génération SDXL activée
-    enable_refiner=True,           # ✅ Refiner (qualité photoréaliste)
+    enable_refiner=False,           # ✅ Refiner (qualité photoréaliste)
     enable_upscaler=False,         # ⏭️  Upscaling Real-ESRGAN
     segment_target="auto",
     segment_method="auto"
