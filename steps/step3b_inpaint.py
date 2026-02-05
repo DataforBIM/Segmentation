@@ -9,8 +9,7 @@ def generate_with_inpainting(
     mask: Image.Image,
     pipe_inpaint,
     refiner,
-    scene_type: str,
-    user_prompt: str,
+    prompt_config: dict,  # NOUVEAU: Configuration modulaire du prompt
     width: int,
     height: int,
     seed: int = 123456,
@@ -28,8 +27,7 @@ def generate_with_inpainting(
         mask: Masque (blanc = zone à modifier)
         pipe_inpaint: Pipeline SDXL Inpainting
         refiner: Pipeline Refiner (optionnel)
-        scene_type: Type de scène détecté
-        user_prompt: Prompt utilisateur
+        prompt_config: Configuration modulaire du prompt
         width, height: Dimensions de sortie
         seed: Seed pour la reproductibilité
         strength: Force de modification (0.99 = remplacement quasi-total)
@@ -41,8 +39,8 @@ def generate_with_inpainting(
         Image avec la zone masquée modifiée
     """
     
-    # Construire les prompts (avec éléments aériens si disponibles)
-    prompt, negative_prompt = build_prompts(scene_type, user_prompt, aerial_elements=aerial_elements)
+    # Construire les prompts avec le builder modulaire
+    prompt, negative_prompt = build_prompts(**prompt_config)
     
     print(f"\n🎨 Prompt final: {prompt[:100]}...")
     print(f"🚫 Negative: {negative_prompt[:100]}...")
@@ -103,8 +101,7 @@ def generate_with_controlnet_inpaint(
     control_image: Image.Image,
     pipe,
     refiner,
-    scene_type: str,
-    user_prompt: str,
+    prompt_config: dict,  # NOUVEAU: Configuration modulaire du prompt
     width: int,
     height: int,
     seed: int = 123456,
@@ -132,8 +129,7 @@ def generate_with_controlnet_inpaint(
         control_image=control_image,
         pipe=pipe,
         refiner=refiner,
-        scene_type=scene_type,
-        user_prompt=user_prompt,
+        prompt_config=prompt_config,  # Utiliser la configuration modulaire
         width=width,
         height=height,
         seed=seed,

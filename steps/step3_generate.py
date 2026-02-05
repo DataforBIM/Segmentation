@@ -9,8 +9,7 @@ def generate_with_sdxl(
     control_image: Image.Image,
     pipe,
     refiner,
-    scene_type: str,
-    user_prompt: str,
+    prompt_config: dict,  # NOUVEAU: Configuration modulaire du prompt
     width: int,
     height: int,
     seed: int = 123456,
@@ -25,8 +24,8 @@ def generate_with_sdxl(
     Paramètres optimisés pour minimiser les artefacts
     """
     
-    # Construire les prompts avec le builder (avec éléments aériens si disponibles)
-    prompt, negative_prompt = build_prompts(scene_type, user_prompt, aerial_elements=aerial_elements)
+    # Construire les prompts avec le builder modulaire
+    prompt, negative_prompt = build_prompts(**prompt_config)
     
     print(f"\n🎨 Prompt final: {prompt[:100]}...")
     print(f"🚫 Negative: {negative_prompt[:100]}...")
@@ -79,7 +78,8 @@ def generate_aerial_multipass(
     width: int,
     height: int,
     seed: int,
-    aerial_elements: list
+    aerial_elements: list,
+    prompt_config: dict  # NOUVEAU: Configuration modulaire du prompt
 ) -> Image.Image:
     """
     🚁 Génération SDXL en 3 passes pour scènes aériennes
@@ -97,6 +97,7 @@ def generate_aerial_multipass(
         width, height: Dimensions
         seed: Seed aléatoire
         aerial_elements: Liste des éléments détectés ["walls", "roof", "window", ...]
+        prompt_config: Configuration modulaire du prompt
     
     Returns:
         Image finale après 3 passes
@@ -117,8 +118,7 @@ def generate_aerial_multipass(
         control_image=control_images.get("depth"),
         pipe=pipe,
         refiner=None,  # Pas de refiner entre les passes
-        scene_type="AERIAL",
-        user_prompt=user_prompt,
+        prompt_config=prompt_config,  # Utiliser la configuration modulaire
         width=width,
         height=height,
         seed=seed,
@@ -142,8 +142,7 @@ def generate_aerial_multipass(
         control_image=None,  # Depth OFF pour ouvertures
         pipe=pipe,
         refiner=None,
-        scene_type="AERIAL",
-        user_prompt=user_prompt,
+        prompt_config=prompt_config,  # Utiliser la configuration modulaire
         width=width,
         height=height,
         seed=seed,
@@ -167,8 +166,7 @@ def generate_aerial_multipass(
         control_image=control_images.get("depth"),  # Depth ON pour contexte
         pipe=pipe,
         refiner=refiner,  # Refiner sur la dernière passe uniquement
-        scene_type="AERIAL",
-        user_prompt=user_prompt,
+        prompt_config=prompt_config,  # Utiliser la configuration modulaire
         width=width,
         height=height,
         seed=seed,

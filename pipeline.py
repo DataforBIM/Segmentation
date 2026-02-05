@@ -1,7 +1,6 @@
 # Orchestration centrale
 from PIL import Image
 from config.settings import *
-from models.blip import detect_scene_type
 from steps.step1_load import load_image
 from steps.step2_preprocess import compute_output_size
 from steps.step4_upscale import upscale_image
@@ -11,8 +10,16 @@ from steps.step5_upload import upload_to_cloudinary
 def run_pipeline(
     image_url: str, 
     user_prompt: str,
+    # NOUVEAU: Configuration du prompt modulaire
+    scene_structure: str = None,  # interior, exterior, aerial, landscape, detail (auto si None)
+    subject: str = None,  # building, facade, interior_space, etc. (auto si None)
+    environment: str = None,  # urban, residential, park, etc. (auto si None)
+    camera: list[str] | str = None,  # eye_level, wide_angle, etc. (auto si None)
+    lighting: str = None,  # natural_daylight, golden_hour, etc. (auto si None)
+    materials: list[str] | str = None,  # concrete, glass, wood, etc. (auto si None)
+    style: list[str] | str = None,  # photorealistic, architectural_photo, etc. (auto si None)
+    auto_detect_prompt: bool = True,  # Auto-détection des paramètres depuis le prompt
     # Contrôle des étapes du pipeline
-    enable_scene_detection: bool = True,
     enable_controlnet: bool = True,
     enable_segmentation: bool = True,  # NOUVELLE: Segmentation SAM2
     enable_sdxl: bool = False,
@@ -24,12 +31,19 @@ def run_pipeline(
     segment_method: str = "auto"
 ) -> dict:
     """
-    Pipeline complet de génération d'images architecturales
+    Pipeline complet de génération d'images architecturales avec prompts modulaires
     
     Args:
         image_url: URL de l'image d'entrée (Cloudinary)
         user_prompt: Prompt utilisateur
-        enable_scene_detection: Activer la détection de scène BLIP
+        scene_structure: Structure de scène (auto-détecté si None)
+        subject: Sujet principal (auto-détecté si None)
+        environment: Environnement (auto-détecté si None)
+        camera: Paramètres caméra (auto-détecté si None)
+        lighting: Conditions d'éclairage (auto-détecté si None)
+        materials: Matériaux (auto-détecté si None)
+        style: Style photographique (auto-détecté si None)
+        auto_detect_prompt: Active l'auto-détection des paramètres
         enable_controlnet: Activer ControlNet (Canny/Depth)
         enable_segmentation: Activer la segmentation SAM2/SegFormer
         enable_sdxl: Activer la génération SDXL
@@ -44,7 +58,7 @@ def run_pipeline(
     """
     
     print("="*60)
-    print("🚀 DÉMARRAGE DU PIPELINE")
+    print("🚀 DÉMARRAGE DU PIPELINE - PROMPT MODULAIRE")
     print("="*60)
     
     # Étape 1: Chargement
@@ -52,14 +66,33 @@ def run_pipeline(
     current_image = load_image(image_url)
     last_step = "load"
     
-    # Étape 2: Détection de scène
-    scene_type = "EXTERIOR"  # Valeur par défaut
-    if enable_scene_detection:
-        print("\n🧠 Étape 2: Détection de scène")
-        scene_type = detect_scene_type(current_image)
-        print(f"   🎯 Scène détectée: {scene_type}")
+    # Étape 2: Configuration du prompt modulaire
+    print("\n🧠 Étape 2: Configuration du prompt modulaire")
+    print(f"   📝 Prompt utilisateur: {user_prompt}")
+    
+    # Stocker la configuration du prompt pour l'utiliser plus tard
+    prompt_config = {
+        "user_prompt": user_prompt,
+        "scene_structure": scene_structure,
+        "subject": subject,
+        "environment": environment,
+        "camera": camera,
+        "lighting": lighting,
+        "materials": materials,
+        "style": style,
+        "auto_detect": auto_detect_prompt
+    }
+    
+    if auto_detect_prompt and not scene_structure:
+        print(f"   🎯 Mode: Auto-détection des paramètres depuis le prompt")
     else:
-        print("\n⏭️  Étape 2: Détection de scène désactivée (utilisation: EXTERIOR)")
+        print(f"   🎯 Mode: Configuration manuelle")
+        if scene_structure:
+            print(f"      - Structure: {scene_structure}")
+        if subject:
+            print(f"      - Sujet: {subject}")
+        if environment:
+            print(f"      - Environnement: {environment}")
     
     # Étape 3: Prétraitement
     print("\n🎨 Étape 3: Prétraitement")
@@ -73,9 +106,10 @@ def run_pipeline(
         # Générer tous les pass de ControlNet
         print("   🎨 Génération de tous les pass ControlNet...")
         
-        # Pass 1: Canny (contours) - Très soft pour scènes aériennes
+        # Pass 1: Canny (contours)
         try:
-            if scene_type == "AERIAL":
+            # Paramètres adaptatifs selon la structure de scène
+            if scene_structure == "aerial":
                 # Canny très soft pour préserver les détails fins en aérien
                 control_images["canny"] = make_canny(current_image, save_path="output/controlnet_canny.png", low_threshold=30, high_threshold=80)
             else:
@@ -90,8 +124,8 @@ def run_pipeline(
         except Exception as e:
             print(f"   ⚠️  Erreur Depth: {e}")
         
-        # Pass 3: OpenPose (poses) - Skip for AERIAL scenes
-        if scene_type != "AERIAL":
+        # Pass 3: OpenPose (poses) - Skip pour scènes aériennes
+        if scene_structure != "aerial":
             try:
                 control_images["openpose"] = make_openpose(current_image, save_path="output/controlnet_openpose.png")
             except Exception as e:
@@ -99,8 +133,8 @@ def run_pipeline(
         else:
             print(f"   ⏭️  OpenPose désactivé pour scènes aériennes")
         
-        # Pass 4: Normal (normales) - Skip for AERIAL scenes
-        if scene_type != "AERIAL":
+        # Pass 4: Normal (normales) - Skip pour scènes aériennes
+        if scene_structure != "aerial":
             try:
                 control_images["normal"] = make_normal(current_image, save_path="output/controlnet_normal.png")
             except Exception as e:
@@ -123,8 +157,8 @@ def run_pipeline(
         
         # Détection automatique de la cible si nécessaire
         if segment_target == "auto":
-            # Passer la scène détectée pour un meilleur filtrage
-            segment_target = detect_segment_target(user_prompt, scene_type=scene_type)
+            # Passer la configuration de prompt pour un meilleur filtrage
+            segment_target = detect_segment_target(user_prompt, scene_type=scene_structure)
             print(f"   🎯 Cible détectée automatiquement: {get_target_description(segment_target)}")
         else:
             print(f"   🎯 Cible spécifiée manuellement: {get_target_description(segment_target)}")
@@ -133,14 +167,14 @@ def run_pipeline(
             image=current_image,
             target=segment_target,
             method=segment_method,
-            scene_type=scene_type,  # Passer la scène détectée
+            scene_type=scene_structure,  # Passer la structure de scène
             dilate=SEGMENT_DILATE,
             feather=SEGMENT_FEATHER,
             save_path="output/segmentation_mask.png"
         )
         
         # Pour les scènes aériennes, charger les métadonnées des éléments détectés
-        if scene_type == "AERIAL":
+        if scene_structure == "aerial":
             aerial_elements = load_aerial_metadata("output/segmentation_mask.png")
             if aerial_elements:
                 print(f"   ✅ Éléments aériens chargés: {len(aerial_elements)} types")
@@ -174,8 +208,7 @@ def run_pipeline(
                 mask=mask,
                 pipe_inpaint=pipe_inpaint,
                 refiner=refiner if enable_refiner else None,
-                scene_type=scene_type,
-                user_prompt=user_prompt,
+                prompt_config=prompt_config,  # Nouvelle configuration modulaire
                 width=width,
                 height=height,
                 seed=SEED,
@@ -203,8 +236,7 @@ def run_pipeline(
                 control_image=control_img,
                 pipe=pipe,
                 refiner=refiner if enable_refiner else None,
-                scene_type=scene_type,
-                user_prompt=user_prompt,
+                prompt_config=prompt_config,  # Nouvelle configuration modulaire
                 width=width,
                 height=height,
                 seed=SEED,
@@ -228,7 +260,7 @@ def run_pipeline(
             print(f"   🎛️  ControlNet utilisé: {'Depth' if control_img else 'None'}")
             
             # === SCÈNES AÉRIENNES: 3 PASSES ===
-            if scene_type == "AERIAL" and aerial_elements:
+            if scene_structure == "aerial" and aerial_elements:
                 print("   🚁 Scène aérienne détectée → Génération multi-pass (3 passes)")
                 print(f"   📋 Éléments détectés: {', '.join(aerial_elements)}")
                 current_image = generate_aerial_multipass(
@@ -240,20 +272,20 @@ def run_pipeline(
                     width=width,
                     height=height,
                     seed=SEED,
-                    aerial_elements=aerial_elements
+                    aerial_elements=aerial_elements,
+                    prompt_config=prompt_config  # Nouvelle configuration modulaire
                 )
             else:
                 # === AUTRES SCÈNES: 1 PASSE CLASSIQUE ===
                 # Strength ajusté pour scènes aériennes
-                strength_value = 0.65 if scene_type == "AERIAL" else 0.20
+                strength_value = 0.65 if scene_structure == "aerial" else 0.20
                 
                 current_image = generate_with_sdxl(
                     image=current_image,
                     control_image=control_img,
                     pipe=pipe,
                     refiner=refiner if enable_refiner else None,
-                    scene_type=scene_type,
-                    user_prompt=user_prompt,
+                    prompt_config=prompt_config,  # Nouvelle configuration modulaire
                     width=width,
                     height=height,
                     seed=SEED,
@@ -309,13 +341,12 @@ def run_pipeline(
     
     return {
         "image": final_image,
-        "scene_type": scene_type,
+        "prompt_config": prompt_config,
         "mask": mask,
         "cloudinary_url": cloudinary_url,
         "dimensions": final_image.size,
         "last_step_executed": last_step,
         "steps_executed": {
-            "scene_detection": enable_scene_detection,
             "controlnet": enable_controlnet,
             "segmentation": enable_segmentation,
             "sdxl": enable_sdxl,
