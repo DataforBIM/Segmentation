@@ -4,7 +4,14 @@ from config.settings import *
 from steps.step1_load import load_image
 from steps.step2_preprocess import compute_output_size
 from steps.step4_upscale import upscale_image
-from steps.step5_upload import upload_to_cloudinary
+
+# Import conditionnel de cloudinary (optionnel)
+try:
+    from steps.step5_upload import upload_to_cloudinary
+    CLOUDINARY_AVAILABLE = True
+except ImportError:
+    CLOUDINARY_AVAILABLE = False
+    print("⚠️  Module 'cloudinary' non disponible - upload désactivé")
 
 
 def run_pipeline(
@@ -146,45 +153,93 @@ def run_pipeline(
     else:
         print("   ⏭️  ControlNet désactivé")
     
-    # Étape 4: Segmentation SAM2/SegFormer (NOUVELLE)
+    # Étape 4: Segmentation - NOUVEAU WORKFLOW (OneFormer + Grounding DINO + SAM2)
     mask = None
+    segmentation_result = None
+    transition_masks = None  # ✨ NOUVEAU: Masques de transition
     aerial_elements = None  # Pour stocker les éléments détectés en mode aérien
     
     if enable_segmentation and USE_SEGMENTATION:
-        print("\n🧠 Étape 4: Segmentation SAM2/SegFormer")
-        from steps.step2b_segment import segment_target_region, create_masked_image, load_aerial_metadata
-        from prompts.target_detection import detect_segment_target, get_target_description
+        print("\n🧠 Étape 4: Segmentation (OneFormer + Grounding DINO + SAM2)")
         
-        # Détection automatique de la cible si nécessaire
-        if segment_target == "auto":
-            # Passer la configuration de prompt pour un meilleur filtrage
-            segment_target = detect_segment_target(user_prompt, scene_type=scene_structure)
-            print(f"   🎯 Cible détectée automatiquement: {get_target_description(segment_target)}")
-        else:
-            print(f"   🎯 Cible spécifiée manuellement: {get_target_description(segment_target)}")
-        
-        mask = segment_target_region(
-            image=current_image,
-            target=segment_target,
-            method=segment_method,
-            scene_type=scene_structure,  # Passer la structure de scène
-            dilate=SEGMENT_DILATE,
-            feather=SEGMENT_FEATHER,
-            save_path="output/segmentation_mask.png"
-        )
-        
-        # Pour les scènes aériennes, charger les métadonnées des éléments détectés
-        if scene_structure == "aerial":
-            aerial_elements = load_aerial_metadata("output/segmentation_mask.png")
-            if aerial_elements:
-                print(f"   ✅ Éléments aériens chargés: {len(aerial_elements)} types")
-        
-        # Sauvegarder une preview du masque sur l'image
-        create_masked_image(
-            current_image, 
-            mask, 
-            save_path="output/segmentation_preview.png"
-        )
+        # Utiliser le NOUVEAU pipeline de segmentation
+        try:
+            from segmentation.pipeline import segment_from_prompt
+            
+            print(f"   🎯 Nouveau workflow: Segmentation hybride avec protection automatique")
+            print(f"   📝 Prompt: {user_prompt}")
+            
+            # Segmentation avec le nouveau workflow
+            segmentation_result = segment_from_prompt(
+                image=current_image,
+                user_prompt=user_prompt,
+                refine_target_with_sam2=False,  # SAM2 optionnel
+                verbose=False  # Désactiver les logs détaillés
+            )
+            
+            # Extraire les masques (avec transition)
+            mask = segmentation_result.final_mask
+            transition_masks = segmentation_result.transition_masks  # ✨ NOUVEAU
+            
+            # Statistiques
+            import numpy as np
+            w, h = current_image.size
+            total_pixels = w * h
+            final_coverage = np.sum(np.array(mask) > 127) / total_pixels * 100
+            
+            print(f"   ✅ Segmentation réussie:")
+            print(f"      • Coverage: {final_coverage:.2f}%")
+            print(f"      • Target: {', '.join(segmentation_result.target.primary)}")
+            print(f"      • Protected: {', '.join(segmentation_result.target.protected)}")
+            print(f"      • Classes détectées: {len(segmentation_result.semantic_map.detected_classes)}")
+            
+            # Sauvegarder les masques
+            mask.save("output/segmentation_mask.png")
+            segmentation_result.target_mask.save("output/segmentation_target.png")
+            segmentation_result.protected_mask.save("output/segmentation_protected.png")
+            
+            # Créer preview
+            from steps.step2b_segment import create_masked_image
+            create_masked_image(
+                current_image, 
+                mask, 
+                save_path="output/segmentation_preview.png"
+            )
+            
+        except Exception as e:
+            print(f"   ⚠️ Erreur nouveau workflow: {e}")
+            print(f"   🔄 Fallback vers ancien workflow...")
+            
+            # FALLBACK vers ancien workflow si erreur
+            from steps.step2b_segment import segment_target_region, create_masked_image, load_aerial_metadata
+            from prompts.target_detection import detect_segment_target, get_target_description
+            
+            if segment_target == "auto":
+                segment_target = detect_segment_target(user_prompt, scene_type=scene_structure)
+                print(f"   🎯 Cible détectée automatiquement: {get_target_description(segment_target)}")
+            else:
+                print(f"   🎯 Cible spécifiée manuellement: {get_target_description(segment_target)}")
+            
+            mask = segment_target_region(
+                image=current_image,
+                target=segment_target,
+                method=segment_method,
+                scene_type=scene_structure,
+                dilate=SEGMENT_DILATE,
+                feather=SEGMENT_FEATHER,
+                save_path="output/segmentation_mask.png"
+            )
+            
+            if scene_structure == "aerial":
+                aerial_elements = load_aerial_metadata("output/segmentation_mask.png")
+                if aerial_elements:
+                    print(f"   ✅ Éléments aériens chargés: {len(aerial_elements)} types")
+            
+            create_masked_image(
+                current_image, 
+                mask, 
+                save_path="output/segmentation_preview.png"
+            )
     else:
         print("\n⏭️  Étape 4: Segmentation désactivée")
     
@@ -203,9 +258,18 @@ def run_pipeline(
             
             print("\n🎭 Étape 6: Génération SDXL Inpainting")
             
+            # ✨ UTILISER LE MASQUE COMBINED (core + transition) pour inpainting
+            mask_for_inpainting = mask
+            if transition_masks is not None:
+                mask_for_inpainting = transition_masks.combined
+                print(f"   ✨ Utilisation du masque de transition (core + gradient)")
+            
+            # Sauvegarder l'image originale pour blending
+            original_image_for_blend = current_image.copy()
+            
             current_image = generate_with_inpainting(
                 image=current_image,
-                mask=mask,
+                mask=mask_for_inpainting,  # ✨ Masque avec transition
                 pipe_inpaint=pipe_inpaint,
                 refiner=refiner if enable_refiner else None,
                 prompt_config=prompt_config,  # Nouvelle configuration modulaire
@@ -214,6 +278,21 @@ def run_pipeline(
                 seed=SEED,
                 aerial_elements=aerial_elements  # Passer les éléments aériens
             )
+            
+            # ✨ POST-BLENDING avec masques de transition pour intégration douce
+            if transition_masks is not None:
+                try:
+                    from segmentation.transition_masks import blend_with_transition
+                    
+                    print(f"   🎨 Application du blending progressif...")
+                    current_image = blend_with_transition(
+                        original_image=original_image_for_blend,
+                        generated_image=current_image,
+                        transition_masks=transition_masks
+                    )
+                    print(f"   ✅ Blending progressif appliqué")
+                except Exception as e:
+                    print(f"   ⚠️  Blending non appliqué: {e}")
             
         elif mask is not None:
             # Mode CONTROLNET + FUSION avec masque

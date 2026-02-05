@@ -1,0 +1,66 @@
+from intent.intent_parser import parse_intent
+import json
+from datetime import datetime
+
+def test_prompts():
+    test_cases = [
+        "Ajouter un peu de roses dans le jardin en premier plan",
+        "Remplacer le ciel par un ciel étoilé",
+        "Modifier la couleur de la maison en rouge vif",
+        "Ajouter des papillons autour des fleurs",
+        "Améliorer l'éclairage de la scène pour un effet dramatique",
+        "Ajouter une fontaine au centre de la place",
+        "Remplacer l'arbre à gauche par un palmier",
+        "Modifier la texture du sol en pavés anciens",
+        "Ajouter des nuages sombres dans le ciel en arrière-plan",
+        "Améliorer les détails des feuilles des arbres"
+    ]
+    
+    results = {
+        "test_date": datetime.now().isoformat(),
+        "total_tests": len(test_cases),
+        "tests": []
+    }
+    
+    print("=" * 80)
+    print("TEST D'INTENTION - 10 CAS DE TEST")
+    print("=" * 80)
+    
+    for i, prompt in enumerate(test_cases, 1):
+        print(f"\n[Test {i}/10]")
+        print(f"Prompt: {prompt}")
+        
+        test_result = {
+            "test_id": i,
+            "prompt": prompt,
+            "status": "success",
+            "intent": None,
+            "error": None
+        }
+        
+        try:
+            intent = parse_intent(prompt)
+            test_result["intent"] = intent
+            print(f"Résultat: {json.dumps(intent, ensure_ascii=False, indent=2)}")
+        except Exception as e:
+            test_result["status"] = "error"
+            test_result["error"] = str(e)
+            print(f"❌ Erreur: {str(e)}")
+        
+        results["tests"].append(test_result)
+        print("-" * 80)
+    
+    # Sauvegarder les résultats dans un fichier JSON
+    output_file = "test_results.json"
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(results, f, ensure_ascii=False, indent=2)
+    
+    print(f"\n✅ Tests terminés!")
+    print(f"📄 Résultats sauvegardés dans: {output_file}")
+    
+    # Afficher un résumé
+    success_count = sum(1 for t in results["tests"] if t["status"] == "success")
+    print(f"\n📊 Résumé: {success_count}/{len(test_cases)} tests réussis")
+
+if __name__ == "__main__":
+    test_prompts()

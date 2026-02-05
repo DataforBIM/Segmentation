@@ -1,0 +1,133 @@
+{
+  "test_date": "2026-02-05T18:58:16.998690",
+  "total_tests": 10,
+  "tests": [
+    {
+      "test_id": 1,
+      "prompt": "Ajouter un peu de roses dans le jardin en premier plan",
+      "status": "success",
+      "intent": {
+        "action": "add",
+        "target": "roses",
+        "location": "jardin",
+        "constraints": [
+          "premier plan"
+        ]
+      },
+      "error": null
+    },
+    {
+      "test_id": 2,
+      "prompt": "Remplacer le ciel par un ciel étoilé",
+      "status": "success",
+      "intent": {
+        "action": "replace",
+        "target": "ciel",
+        "constraints": [
+          "ciel étoilé"
+        ]
+      },
+      "error": null
+    },
+    {
+      "test_id": 3,
+      "prompt": "Modifier la couleur de la maison en rouge vif",
+      "status": "success",
+      "intent": {
+        "action": "modify",
+        "target": "couleur de la maison",
+        "constraints": [
+          "rouge vif"
+        ]
+      },
+      "error": null
+    },
+    {
+      "test_id": 4,
+      "prompt": "Ajouter des papillons autour des fleurs",
+      "status": "success",
+      "intent": {
+        "action": "add",
+        "target": "papillons",
+        "location": "autour des fleurs",
+        "constraints": []
+      },
+      "error": null
+    },
+    {
+      "test_id": 5,
+      "prompt": "Améliorer l'éclairage de la scène pour un effet dramatique",
+      "status": "success",
+      "intent": {
+        "action": "enhance",
+        "target": "éclairage de la scène",
+        "constraints": [
+          "effet dramatique"
+        ]
+      },
+      "error": null
+    },
+    {
+      "test_id": 6,
+      "prompt": "Ajouter une fontaine au centre de la place",
+      "status": "success",
+      "intent": {
+        "action": "add",
+        "target": "fontaine",
+        "location": "centre de la place",
+        "constraints": []
+      },
+      "error": null
+    },
+    {
+      "test_id": 7,
+      "prompt": "Remplacer l'arbre à gauche par un palmier",
+      "status": "success",
+      "intent": {
+        "action": "replace",
+        "target": "arbre à gauche",
+        "constraints": [
+          "palmier"
+        ]
+      },
+      "error": null
+    },
+    {
+      "test_id": 8,
+      "prompt": "Modifier la texture du sol en pavés anciens",
+      "status": "success",
+      "intent": {
+        "action": "modify",
+        "target": "texture",
+        "location": "sol",
+        "constraints": [
+          "pavés anciens"
+        ]
+      },
+      "error": null
+    },
+    {
+      "test_id": 9,
+      "prompt": "Ajouter des nuages sombres dans le ciel en arrière-plan",
+      "status": "success",
+      "intent": {
+        "action": "add",
+        "target": "nuages sombres",
+        "location": "ciel en arrière-plan",
+        "constraints": []
+      },
+      "error": null
+    },
+    {
+      "test_id": 10,
+      "prompt": "Améliorer les détails des feuilles des arbres",
+      "status": "success",
+      "intent": {
+        "action": "enhance",
+        "target": "détails des feuilles des arbres",
+        "constraints": []
+      },
+      "error": null
+    }
+  ]
+}

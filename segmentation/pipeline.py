@@ -45,6 +45,9 @@ class SegmentationResult:
     protected_mask: Optional[Image.Image] = None
     context_mask: Optional[Image.Image] = None
     
+    # ✨ NOUVEAU: Masques de transition pour blending
+    transition_masks: Optional[Any] = None  # TransitionMasks
+    
     # Métadonnées
     intent: Optional[Intent] = None
     target: Optional[Target] = None
@@ -68,6 +71,7 @@ def segment_from_prompt(
     segformer_processor: Optional[Any] = None,
     device: str = "cuda",
     auto_correct: bool = True,
+    refine_target_with_sam2: bool = False,
     verbose: bool = True
 ) -> SegmentationResult:
     """
@@ -76,20 +80,21 @@ def segment_from_prompt(
     ÉTAPES:
     1. Parse l'intention du prompt
     2. Résout les cibles (primary/protected/context)
-    3. Segmentation sémantique (SegFormer)
-    4. Segmentation instance (SAM2)
+    3. Segmentation sémantique (OneFormer/SegFormer)
+    4. Segmentation instance (SAM2) - OPTIONNEL
     5. Fusion des masques avec priorités
     6. Raffinement du masque
     7. Validation et auto-correction
     
     Args:
         image: Image PIL à segmenter
-        user_prompt: Prompt utilisateur (ex: "change the floor to marble")
+        user_prompt: Prompt utilisateur (ex: "change the facade to white modern")
         sam2_predictor: Modèle SAM2 pré-chargé
         segformer_model: Modèle SegFormer pré-chargé
         segformer_processor: Processor SegFormer pré-chargé
         device: Device (cuda/cpu)
         auto_correct: Tenter l'auto-correction si masque invalide
+        refine_target_with_sam2: Si True, raffine UNIQUEMENT le target avec SAM2
         verbose: Afficher les logs
     
     Returns:
@@ -120,7 +125,11 @@ def segment_from_prompt(
     
     if verbose:
         print(f"   Action: {intent.action}")
-        print(f"   Target: {intent.target}")
+        print(f"   Action Type: {intent.action_type}")  # ✨ NOUVEAU
+        print(f"   Target: {intent.target_hint}")
+        if intent.action_type == "ADD":
+            print(f"   Object to Add: {intent.object_to_add}")
+            print(f"   Location: {intent.location}")
         print(f"   Material: {intent.material}")
         print(f"   Color: {intent.color}")
         print(f"   Style: {intent.style}")
@@ -138,9 +147,9 @@ def segment_from_prompt(
     target = resolve_target(intent)
     
     if verbose:
-        print(f"   Primary classes: {target.primary_classes}")
-        print(f"   Protected classes: {target.protected_classes}")
-        print(f"   Context classes: {target.context_classes}")
+        print(f"   Primary: {target.primary}")
+        print(f"   Protected: {target.protected}")
+        print(f"   Context: {target.context}")
         print()
     
     # =========================================================
@@ -154,63 +163,79 @@ def segment_from_prompt(
     
     semantic_map = semantic_segment(
         image=image,
-        model=segformer_model,
-        processor=segformer_processor,
-        device=device
+        model_type="oneformer"  # Utiliser OneFormer par défaut
     )
     
     if verbose:
-        detected_classes = list(semantic_map.class_masks.keys())[:10]
-        print(f"   Classes détectées: {detected_classes}...")
-        print()
-    
+        detected_classes = list(semantic_map.masks.keys())[:10]
+        print(f"   ✅ Classes détectées: {', '.join(detected_classes)}")
+        print()    
     # =========================================================
-    # ÉTAPE 4: SEGMENTATION D'INSTANCE (SAM2)
+    # ÉTAPE 3.5: SPATIAL ZONE DETECTION (pour actions ADD)
     # =========================================================
     
-    if verbose:
-        print("━" * 40)
-        print("ÉTAPE 4: INSTANCE SEGMENTATION")
-        print("━" * 40)
+    spatial_zone = None
+    depth_map = None
     
-    # Obtenir le masque sémantique primaire
-    primary_semantic_mask = get_combined_mask(
-        semantic_map,
-        target.primary_classes
-    )
-    
-    # Appliquer SAM2 si disponible
-    if sam2_predictor is not None and primary_semantic_mask is not None:
+    if intent.action_type == "ADD":
+        if verbose:
+            print("─" * 40)
+            print("ÉTAPE 3.5: SPATIAL ZONE DETECTION (ADD)")
+            print("─" * 40)
         
-        instance_masks = instance_segment_from_semantic(
-            predictor=sam2_predictor,
+        # Générer depth map pour détection de zones
+        try:
+            from steps.step2_preprocess import make_depth
+            depth_pil = make_depth(image, save_path="output/depth_map.png")
+            depth_map = np.array(depth_pil)
+            
+            if verbose:
+                print(f"   ✅ Depth map générée")
+        except Exception as e:
+            if verbose:
+                print(f"   ⚠️  Depth map non disponible: {e}")
+            depth_map = None
+        
+        # Détecter la zone spatiale
+        from .spatial_zones import detect_spatial_zone
+        
+        zone_description = intent.location or "ground_foreground"
+        
+        spatial_zone = detect_spatial_zone(
             image=image,
-            semantic_mask=primary_semantic_mask,
-            num_points=5
+            zone_description=zone_description,
+            semantic_masks=semantic_map.masks,
+            depth_map=depth_map
         )
         
-        # Fusionner les instances
-        if instance_masks:
-            instance_mask = instance_masks[0]  # Meilleure instance
-            for mask in instance_masks[1:]:
-                instance_mask = Image.fromarray(
-                    np.maximum(
-                        np.array(instance_mask),
-                        np.array(mask)
-                    ),
-                    mode="L"
-                )
-            primary_instance_mask = instance_mask
+        if verbose:
+            from .spatial_zones import describe_zone
+            print(f"   ✅ Zone détectée: {describe_zone(spatial_zone)}")
+            
+            # Sauvegarder preview de la zone
+            from .spatial_zones import visualize_zone
+            zone_preview = visualize_zone(image, spatial_zone, alpha=0.5)
+            zone_preview.save("output/spatial_zone_preview.png")
+            print(f"   ✅ Preview: output/spatial_zone_preview.png")
+        
+        print()    
+    # =========================================================
+    # ÉTAPE 4: INSTANCE SEGMENTATION (SAM2) - OPTIONNEL
+    # =========================================================
+    
+    if verbose:
+        print("━" * 40)
+        print("ÉTAPE 4: INSTANCE SEGMENTATION (OPTIONNEL)")
+        print("━" * 40)
+    
+    # Pour l'instant, on ne fait pas de segmentation d'instance séparée
+    # SAM2 sera utilisé dans l'étape de fusion si refine_target_with_sam2=True
+    
+    if verbose:
+        if refine_target_with_sam2:
+            print(f"   ✅ Raffinement SAM2 activé (sera appliqué au target uniquement)")
         else:
-            primary_instance_mask = primary_semantic_mask
-        
-        if verbose:
-            print(f"   ✓ SAM2: {len(instance_masks)} instances trouvées")
-    else:
-        primary_instance_mask = primary_semantic_mask
-        
-        if verbose:
-            print(f"   ⚠️ SAM2 non disponible, utilisation masque sémantique")
+            print(f"   ℹ️  Raffinement SAM2 désactivé")
     
     print()
     
@@ -220,27 +245,47 @@ def segment_from_prompt(
     
     if verbose:
         print("━" * 40)
-        print("ÉTAPE 5: MASK FUSION")
+        if intent.action_type == "ADD":
+            print("ÉTAPE 5: ADDITIVE MASK CREATION")
+        else:
+            print("ÉTAPE 5: MASK FUSION + SAM2 REFINEMENT")
         print("━" * 40)
     
-    # Créer les masques pour chaque layer
-    protected_mask = get_combined_mask(
-        semantic_map,
-        target.protected_classes
-    )
-    
-    context_mask = get_combined_mask(
-        semantic_map,
-        target.context_classes
-    )
-    
-    # Fusionner avec les priorités
-    mask_layers = fuse_masks(
-        target_mask=primary_instance_mask,
-        protected_mask=protected_mask,
-        context_mask=context_mask,
-        target_priority=target.priority
-    )
+    # NOUVEAU: Distinction ADD vs MODIFY
+    if intent.action_type == "ADD" and spatial_zone:
+        # MODE ADDITIF: Utiliser la zone spatiale comme masque
+        if verbose:
+            print(f"   ✨ Mode ADDITIF: Masque = zone d'accueil")
+            print(f"   ❌ Pas de remplacement du contenu existant")
+        
+        # Le masque final = zone spatiale (avec protection intégrée)
+        final_mask_pil = spatial_zone.mask
+        
+        # Créer mask_layers compatible
+        from .mask_fusion import MaskLayers
+        mask_layers = MaskLayers(
+            target=final_mask_pil,
+            protected=Image.new("L", image.size, 0),  # Pas de protection supplémentaire
+            context=Image.new("L", image.size, 0),
+            final=final_mask_pil
+        )
+        
+        primary_semantic_mask = final_mask_pil
+        
+    else:
+        # MODE CLASSIQUE: Fusionner avec les priorités
+        # SAM2 sera appliqué au target uniquement si refine_target_with_sam2=True
+        # Grounding DINO sera utilisé pour les ouvertures si manquantes
+        mask_layers = fuse_masks(
+            semantic_map=semantic_map,
+            target=target,
+            refine_target_with_sam2=refine_target_with_sam2,
+            use_grounding_dino_for_protected=True,  # Approche hybride activée
+            original_image=image
+        )
+        
+        # Pour auto-correction
+        primary_semantic_mask = get_combined_mask(semantic_map, target.primary)
     
     if verbose:
         print()
@@ -256,14 +301,80 @@ def segment_from_prompt(
     
     # Paramètres dynamiques
     refinement_params = get_dynamic_refinement_params(
-        mask_layers.final_mask,
+        mask_layers.final,
         image.size
     )
     
     refined_mask = refine_mask(
-        mask_layers.final_mask,
+        mask_layers.final,
         **refinement_params
     )
+    
+    if verbose:
+        print()
+    
+    # =========================================================
+    # ÉTAPE 6.5: CRÉATION DES MASQUES DE TRANSITION
+    # =========================================================
+    
+    transition_masks = None
+    
+    if verbose:
+        print("━" * 40)
+        print("ÉTAPE 6.5: TRANSITION MASKS (BLENDING)")
+        print("━" * 40)
+    
+    try:
+        from .transition_masks import (
+            create_transition_masks,
+            compute_adaptive_transition_width,
+            visualize_transition_masks,
+            create_mask_comparison
+        )
+        
+        # Calculer largeur adaptative
+        transition_width = compute_adaptive_transition_width(
+            refined_mask,
+            image.size,
+            base_width=12
+        )
+        
+        # Créer masques de transition
+        transition_masks = create_transition_masks(
+            mask_core=refined_mask,
+            transition_width=transition_width,
+            gradient_type="cosine",  # Plus doux que linéaire
+            adaptive_feather=True  # ✨ Feathering adaptatif basé sur aire du masque
+        )
+        
+        if verbose:
+            print(f"   ✅ Transition width: {transition_width}px")
+            print(f"   ✅ Gradient type: cosine")
+            
+            # Sauvegarder visualisations
+            visualize_transition_masks(
+                image,
+                transition_masks,
+                save_path="output/transition_preview.png"
+            )
+            
+            create_mask_comparison(
+                transition_masks,
+                save_path="output/transition_masks_comparison.png"
+            )
+            
+            # Sauvegarder masques individuels
+            transition_masks.core.save("output/mask_core.png")
+            transition_masks.transition.save("output/mask_transition.png")
+            transition_masks.combined.save("output/mask_combined.png")
+            
+            print(f"   💾 Preview: output/transition_preview.png")
+            print(f"   💾 Comparison: output/transition_masks_comparison.png")
+    
+    except Exception as e:
+        if verbose:
+            print(f"   ⚠️  Transition masks non créés: {e}")
+        transition_masks = None
     
     if verbose:
         print()
@@ -312,9 +423,10 @@ def segment_from_prompt(
     
     return SegmentationResult(
         final_mask=refined_mask,
-        target_mask=mask_layers.target_mask,
-        protected_mask=mask_layers.protected_mask,
-        context_mask=mask_layers.context_mask,
+        target_mask=mask_layers.target,
+        protected_mask=mask_layers.protected,
+        context_mask=mask_layers.context,
+        transition_masks=transition_masks,  # ✨ NOUVEAU
         intent=intent,
         target=target,
         semantic_map=semantic_map,
@@ -372,7 +484,7 @@ def quick_segment(
     )
     
     # Raffinement
-    refined = refine_mask(mask_layers.final_mask)
+    refined = refine_mask(mask_layers.final)
     
     return refined
 

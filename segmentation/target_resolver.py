@@ -47,7 +47,7 @@ INTENT_TO_TARGETS = {
         "method": "semantic"
     },
     "wall": {
-        "primary": ["wall"],
+        "primary": ["wall", "building"],  # Ajout de building comme fallback
         "protected": ["furniture", "person", "window", "door", "object"],
         "context": ["floor", "ceiling"],
         "method": "semantic"
@@ -131,6 +131,18 @@ INTENT_TO_TARGETS = {
         "protected": [],
         "context": ["building", "road"],
         "method": "sam2"
+    },
+    "flowers": {
+        "primary": ["flower", "plant"],
+        "protected": ["grass", "tree", "building"],
+        "context": ["ground"],
+        "method": "sam2"
+    },
+    "garden": {
+        "primary": ["ground", "grass"],
+        "protected": ["flower", "plant", "tree"],
+        "context": ["building"],
+        "method": "semantic"
     }
 }
 
@@ -212,6 +224,11 @@ def resolve_target(intent: Intent) -> Target:
         ['furniture', 'person', 'object']
     """
     
+    # ✨ NOUVEAU: Actions ADD → utiliser zones spatiales
+    if intent.action_type == "ADD":
+        # Pour ADD, la cible est la zone d'accueil, pas l'objet final
+        return _resolve_target_for_add(intent)
+    
     # Cas 1: Cible explicite dans l'intention
     if intent.target_hint and intent.target_hint in INTENT_TO_TARGETS:
         config = INTENT_TO_TARGETS[intent.target_hint]
@@ -291,6 +308,63 @@ def _calculate_priorities(primary_targets: list[str]) -> dict:
         priorities[target] = base_priority - (i * 0.05)
     
     return priorities
+
+
+# =====================================================
+# RÉSOLUTION POUR ACTIONS ADD
+# =====================================================
+
+def _resolve_target_for_add(intent: Intent) -> Target:
+    """
+    Résolution spéciale pour actions ADD
+    
+    Pour ADD, la cible est la ZONE D'ACCUEIL, pas l'objet final.
+    On protège tout ce qui existe déjà.
+    
+    Args:
+        intent: Intent avec action_type="ADD"
+    
+    Returns:
+        Target avec zone comme primary et objets existants comme protected
+    """
+    
+    # Déterminer le contexte (jardin, sol, mur, etc.)
+    context = intent.target_hint or "ground"
+    
+    # Mapping contexte → zone d'accueil
+    context_to_zone = {
+        "garden": ["grass", "ground"],
+        "flowers": ["grass", "ground"],  # Zone pour ajouter les fleurs
+        "ground": ["ground", "grass"],
+        "lawn": ["grass"],
+        "floor": ["floor"],
+        "wall": ["wall"],
+        "vegetation": ["ground", "grass"]
+    }
+    
+    primary = context_to_zone.get(context, ["ground"])
+    
+    # PROTECTION: Tous les objets existants
+    # Pour ADD, on ne veut PAS remplacer, donc on protège tout
+    protected = [
+        "tree", "plant", "building", "person", "car", 
+        "furniture", "window", "door", "object"
+    ]
+    
+    # ⚠️  NE PAS protéger la surface d'accueil !
+    # Si on ajoute des fleurs sur le gazon, le gazon est la zone d'accueil
+    # On va générer des roses PAR-DESSUS le gazon existant
+    # Donc on ne protège pas grass/ground/vegetation
+    
+    return Target(
+        primary=primary,
+        protected=protected,
+        context=[],
+        method="spatial",  # ✨ NOUVEAU: méthode spatiale
+        priorities={"spatial_zone": 1.0},
+        scene=intent.scene,
+        confidence=intent.confidence
+    )
 
 
 # =====================================================

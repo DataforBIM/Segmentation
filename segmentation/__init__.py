@@ -15,7 +15,11 @@ from .semantic_segmentation import (
     SemanticMap,
     get_combined_mask,
     subtract_masks,
-    ADE20K_CLASSES
+    ADE20K_CLASSES,
+    extract_architectural_masks,
+    prepare_facade_masks,
+    load_oneformer,
+    load_segformer
 )
 from .instance_segmentation import (
     instance_segment_with_points,
@@ -71,6 +75,10 @@ __all__ = [
     "get_combined_mask",
     "subtract_masks",
     "ADE20K_CLASSES",
+    "extract_architectural_masks",
+    "prepare_facade_masks",
+    "load_oneformer",
+    "load_segformer",
     
     # === ÉTAPE 4: Instance Segmentation ===
     "instance_segment_with_points",

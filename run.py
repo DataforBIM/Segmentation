@@ -6,7 +6,7 @@ INPUT_IMAGE_URL = "https://res.cloudinary.com/ddmzn1508/image/upload/v1770198200
 
 result = run_pipeline(
     INPUT_IMAGE_URL, 
-    "Change la couleur de la façade",
+    "Ajouter un peu de roses dans le jardin en premier plan",
     # Configuration du prompt modulaire (auto-détecté si None)
     scene_structure=None,         # "exterior" sera auto-détecté
     subject=None,                 # "facade" sera auto-détecté
@@ -14,7 +14,7 @@ result = run_pipeline(
     # Contrôle des étapes
     enable_controlnet=True,       # ✅ ControlNet (préserve structure)
     enable_segmentation=True,     # ✅ Segmentation (masque ciblé)
-    enable_sdxl=True,            # ⏭️  Génération SDXL
+    enable_sdxl=False ,            # ⏭️  Génération SDXL
     enable_refiner=False,         # ⏭️  Refiner (qualité photoréaliste)
     enable_upscaler=False,        # ⏭️  Upscaling Real-ESRGAN
     segment_target="auto",
