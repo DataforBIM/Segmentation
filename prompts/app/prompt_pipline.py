@@ -1,3 +1,4 @@
+# Orchestration : intent → layers → prompt final
 from intent.intent_parser import parse_intent
 from intent.intent_config import IntentConfig
 from prompts.prompt_layer_builder import build_prompt_layers
